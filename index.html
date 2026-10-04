@@ -7,8 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#fff;--card:#f6f6fb;--line:#e4e4ee;--tx:#14141f;--mu:#6b6b80;--ac:#6d3df5;--ok:#12a36b;--warn:#e08a00;--bad:#d9363e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#fff;--card:#f6f6fb;--tx:#14141f}}
-:root[data-theme="dark"]{--bg:#fff;--card:#f6f6fb;--tx:#14141f}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font-family:Outfit,system-ui,sans-serif}
@@ -65,6 +63,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 .mi .ic{width:50px;height:50px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;background:var(--card);flex:none}
 .mi b{display:block;font-size:18px;font-weight:600}.mi small{font-size:15px;color:var(--mu)}
 .lock{max-width:380px;margin:30px auto;text-align:center}.lock .btn{width:100%;margin-top:10px}.err{color:var(--bad);font-size:14px;margin-top:8px;min-height:18px}
+#sync{font-size:12px;color:var(--mu);margin-top:8px}
 </style>
 </head>
 <body>
@@ -97,31 +96,40 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 <div><label>Status</label><select id="sta"><option>Overpaid</option><option selected>Fair</option><option>Underpaid</option></select></div>
 <div class="w"><label>Image</label><input id="img" type="file" accept="image/*"></div>
 </div>
-<div style="display:flex;gap:8px;margin-top:12px"><button class="btn" id="save">Save</button><button class="btn g" id="cancel" hidden>Cancel edit</button></div></div>
+<div style="display:flex;gap:8px;margin-top:12px"><button class="btn" id="save">Save</button><button class="btn g" id="cancel" hidden>Cancel edit</button></div><div id="sync"></div></div>
 <div class="panel"><h2>All items</h2><div id="list"></div><button class="btn g" id="lockb" style="margin-top:12px">Lock panel</button></div>
 </div>
 </section>
 </main>
 <div class="modal" id="m"><div class="sheet"><input id="mq" placeholder="Search…" style="margin-bottom:8px"><div id="ml"></div></div></div>
 <script>
+/* PASTE YOUR FIREBASE DATABASE ADDRESS BETWEEN THE QUOTES, e.g. https://yourname-default-rtdb.firebaseio.com */
+const DB='https://yba-values-default-rtdb.firebaseio.com';
+
 const KEY='yba-values-v1',HASH='5d24805756bd5a6daa294fb7b4b9b4c8c82210add14619e8417df60b1e19f566';
-let items=[],trade={me:[null,null,null,null],them:[null,null,null,null]},editId=null,img='',pick=null,cat='All',unlocked=false;
-try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
-try{unlocked=sessionStorage.getItem('yba-owner')==='1'}catch(e){}
-if(!items.length)items=[
+const DEFAULTS=[
 {id:1,name:'Star Platinum',val:2e6,cat:'Stand',rar:'Legendary',dem:9,trd:'Stable',sta:'Fair',img:''},
 {id:2,name:'The World',val:2.5e6,cat:'Stand',rar:'Legendary',dem:10,trd:'Rising',sta:'Fair',img:''},
 {id:3,name:'Killer Queen',val:1.2e6,cat:'Stand',rar:'Rare',dem:7,trd:'Stable',sta:'Fair',img:''},
 {id:4,name:'Rokakaka',val:150e3,cat:'Item',rar:'Uncommon',dem:6,trd:'Falling',sta:'Overpaid',img:''}];
+const online=DB.startsWith('https://'),base=DB.replace(/\/$/,'');
+let items=[],trade={me:[null,null,null,null],them:[null,null,null,null]},editId=null,img='',pick=null,cat='All',unlocked=false;
+try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
+try{unlocked=sessionStorage.getItem('yba-owner')==='1'}catch(e){}
+if(!items.length&&!online)items=DEFAULTS;
 const $=i=>document.getElementById(i);
-const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){alert('Storage is full. Use a smaller image.')}};
+const cache=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+const say=t=>$('sync').textContent=t;
+async function load(){if(!online)return;try{const r=await fetch(base+'/items.json');if(!r.ok)throw 0;const d=await r.json();items=d?Object.values(d):[];cache();cleanTrade();all()}catch(e){say('Could not reach the database. Showing saved data.')}}
+async function put(f){cache();if(!online)return;try{const r=await fetch(base+'/items/'+f.id+'.json',{method:'PUT',body:JSON.stringify(f)});if(!r.ok)throw 0;say('Saved for everyone.')}catch(e){alert('Could not save online. Check your database address and rules.')}}
+async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/items/'+id+'.json',{method:'DELETE'});if(!r.ok)throw 0}catch(e){alert('Could not delete online.')}}
 const fmt=n=>n>=1e9?+(n/1e9).toFixed(2)+'B':n>=1e6?+(n/1e6).toFixed(2)+'M':n>=1e3?+(n/1e3).toFixed(2)+'K':String(n);
 const parse=s=>{const m=String(s).trim().toUpperCase().match(/^([\d.,]+)\s*([KMB])?$/);if(!m)return NaN;return parseFloat(m[1].replace(/,/g,''))*({K:1e3,M:1e6,B:1e9}[m[2]]||1)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pic=f=>f.img?`<img src="${f.img}" alt="">`:`<div class="ph">${esc(f.name[0]||'?')}</div>`;
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
 const titles={v:'YBA Values',c:'Calculator',o:'Owner panel'};
-function go(t){['v','c','o'].forEach(s=>$(s).hidden=s!==t);$('ttl').textContent=titles[t];menu(false);scrollTo(0,0);if(t==='o')own()}
+function go(t){['v','c','o'].forEach(s=>$(s).hidden=s!==t);$('ttl').textContent=titles[t];menu(false);scrollTo(0,0);if(t==='o')own();if(t==='v')load()}
 function menu(on){$('menu').classList.toggle('on',on);$('mi').innerHTML=on?'<path d="M6 6l12 12M18 6L6 18"/>':'<path d="M4 7h16M4 12h16M4 17h16"/>'}
 $('mb').onclick=()=>menu(!$('menu').classList.contains('on'));
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
@@ -141,15 +149,15 @@ $('grid').innerHTML=l.length?l.map(f=>`<div class="card"><span class="badge">${e
 $('q').oninput=grid;
 $('chips').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;grid()}};
 function list(){$('list').innerHTML=items.length?items.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):'<div class="empty">Add your first item above.</div>'}
-$('list').onclick=e=>{const d=e.target.dataset;if(d.d){if(!confirm('Delete this item?'))return;items=items.filter(f=>f.id!=d.d);cleanTrade();persist();all()}
+$('list').onclick=async e=>{const d=e.target.dataset;if(d.d){if(!confirm('Delete this item?'))return;items=items.filter(f=>f.id!=d.d);cleanTrade();all();await del(d.d)}
 if(d.e){const f=items.find(x=>x.id==d.e);editId=f.id;img=f.img;$('n').value=f.name;$('val').value=fmt(f.val);$('cat').value=f.cat;$('rar').value=f.rar;$('dem').value=f.dem;$('trd').value=f.trd;$('sta').value=f.sta;$('ft').textContent='Edit item';$('cancel').hidden=false;scrollTo(0,0)}};
 function reset(){editId=null;img='';['n','val'].forEach(i=>$(i).value='');$('img').value='';$('dem').value=5;$('ft').textContent='Add an item';$('cancel').hidden=true}
 $('cancel').onclick=reset;
 $('img').onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);img=c.toDataURL('image/webp',.85)};im.src=r.result};r.readAsDataURL(file)};
-$('save').onclick=()=>{if(!unlocked)return;const name=$('n').value.trim(),val=parse($('val').value);if(!name)return alert('Enter a name.');if(isNaN(val))return alert('Enter a value like 1.5M or 600K.');
+$('save').onclick=async()=>{if(!unlocked)return;const name=$('n').value.trim(),val=parse($('val').value);if(!name)return alert('Enter a name.');if(isNaN(val))return alert('Enter a value like 1.5M or 600K.');
 const o={name,val,cat:$('cat').value,rar:$('rar').value,dem:Math.min(10,Math.max(1,+$('dem').value||1)),trd:$('trd').value,sta:$('sta').value,img};
-if(editId)Object.assign(items.find(x=>x.id==editId),o);else items.push({id:Date.now(),...o});
-persist();reset();all()};
+let f;if(editId){f=items.find(x=>x.id==editId);Object.assign(f,o)}else{f={id:Date.now(),...o};items.push(f)}
+reset();all();await put(f)};
 function cleanTrade(){for(const s in trade)trade[s]=trade[s].map(x=>x&&items.find(f=>f.id==x.id)?x:null)}
 function calc(){const sum=s=>trade[s].reduce((a,x)=>{const f=x&&items.find(f=>f.id==x.id);return a+(f?f.val*x.q:0)},0);
 const me=sum('me'),th=sum('them'),d=th-me;
@@ -165,7 +173,7 @@ $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;trade[pick.s][p
 $('m').onclick=e=>{if(e.target.id==='m')$('m').classList.remove('on')};
 $('clr').onclick=()=>{trade={me:[null,null,null,null],them:[null,null,null,null]};calc()};
 function all(){grid();list();calc()}
-all();
+all();load();
 </script>
 </body>
 </html>
