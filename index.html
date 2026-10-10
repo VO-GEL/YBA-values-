@@ -173,6 +173,337 @@ $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;trade[pick.s][p
 $('m').onclick=e=>{if(e.target.id==='m')$('m').classList.remove('on')};
 $('clr').onclick=()=>{trade={me:[null,null,null,null],them:[null,null,null,null]};calc()};
 function all(){grid();list();calc()}
+/* ===== STARTER SKINS IMPORT ===== */
+const SCALE=1; // 1 = values in Rokas. Change this if your own values use a different scale
+const TIER={U:[207,'Common',4],S:[2107,'Mythic',8],'A+':[857,'Legendary',7],'A-':[686,'Rare',6],B:[264,'Uncommon',5],F:[17,'Common',3],G:[700,'Rare',6]};
+const SEED=`Crazy Idol Requiem|CDR|U|361
+Chopper|CDR|U
+The Bunny Devil (bunny)|SCR|U
+Mecha Diamond|CDR|U
+Diva Down|DD|U|207
+Bondrewd|DD|U|193
+Diamondhead|CDR|U
+Crazy Sapphire|CDR|U
+Gilded Diamond|CDR|U
+Overseer|CDR|U
+Volcanic Diamond|CDR|U
+Jade Serenity|CDR|U
+Crazy Idol|CDR|U
+Sakura|CDR|U
+Tsunade|CDR|U
+Neon Ascension|CDR|U
+Jade Peace|CDR|U
+Crazy Ruby|CDR|U
+Elizabeth|CDR|U
+Wendigo (wendi)|TA4|S
+The Waifu (v1)|TW|S|867
+Haunted Jacko (hsptw)|SPTW|S|3214
+Fused Zamasu (zam)|TWOH|S
+Shadow the World (stw tw)|TW|S
+Shadow the World (stw stw)|STW|S
+Astral Enigma (ae)|GER|S
+Ghost World (gtw)|TW|S|3500
+Mirage of Phantoms (mop)|TWOH|S
+Deadeye Drifter (ddtwau)|TWAU|S
+Aang|WR|S
+The Waifu (v1oh)|TWOH|S|867
+The Waifu Over Heaven (v3)|TWOH|S
+Made in Christmas Future (micf)|MIH|S
+Ghost World (gtwoh)|TWOH|S
+Festive Platinum (fsptw)|SPTW|S
+Booette (boo)|STW|S
+Grim Reaper (grim)|KCR|S|1786
+Shadow (v4)|STW|S
+Horseman of Heaven (hoh)|MIH|S
+Go/Jo|STW|S
+Zeus GOW (zgow)|WR|S
+Korra|WR|S
+Bloodthirster (bt)|ANUBIS|S
+Tomb Crypt Tusk (tct)|TA4|S|1643
+Candy Cane World (ccstw)|STW|S
+Crazy Overseer (ocd)|CD|S
+Nah, I'd Win (niw)|STW|S
+Bell Pepper (bpau)|CPAU|S
+Jack-O-Platinum (jsp)|SP|S|4000
+Shadow the World (stwoh)|TWOH|S
+Ghostface (gf)|SCR|S
+Joe's Pride (jp)|ANUBIS|S
+Zeus OP (zop)|WR|S
+Dark Determination (ddt)|TA4|S|1929
+Retro The World (rtwoh)|TWOH|S|2571
+Killua|CPAU|S
+Lightbringer (lb)|TWOH|S
+Neco Arc (neco)|D4C:LT|S
+Doodlebop (doodle)|S&W:GB|S
+Zenitsu (zen)|CPAU|S
+Frostbite (fb)|KQ|S
+Jack-O-Platinum (jsptw)|SPTW|S
+The World Under Hell (twuh)|TWOH|S
+Nautilodant|DD|S
+Cthulu|DD|S
+Devil Moon (dmoon)|C-MOON|S|4500
+SCP-049|KQ:BTD|S
+Festive World (ftwoh)|TWOH|S
+Goku Black (gb)|KCR|S
+Tyrant Crimson (tkc)|KC|S|2286
+Spirit Bomb Sword (sbs)|ANUBIS|S|1071
+Festive World (ftw)|TW|S
+Made in Pibble (mip)|MIH|S
+Tyrant Crimson (tkcr)|KCR|A+
+Shanks|SCR|A+
+Sailor|S&W:GB|A+
+TWAU Over Heaven (twauoh)|TWAU|A+
+Arlong|TWOH|A+
+Molted Chariot (molted)|SCR|A+
+Arlong|TW|A+
+Mermaid|DD|A+
+Snake of Christmas Past (socp)|WS|A+|514
+Golden Retribution (ta5)|TA4|A+
+Mr Jukes Angel (mja)|MIH|A+
+Sumo World (sumo twoh)|TWOH|A+|857
+The Waifu v2 (v2oh)|TWOH|A+|357
+Forged by Hell (fih)|MIH|A+
+Mr. Tentacles (squid)|HG|A+
+Mr. Pekin (pekin)|MP|A+
+Deep Sea Diver|DD|A+
+Weather Reporter|WR|A+
+SCP-2521 (redacted name)|STF|A+
+The Waifu v2 (v2)|TW|A+|357
+Blade of Exile (boe)|ANUBIS|A+
+Polar President (polar)|MP|A+
+Frostbite (fb btd)|KQ:BTD|A+
+Control Devil (makima)|SCR|A+
+Rogue Ninja (itachi)|KCR|A+
+Hidden Leaf Hero (naruto)|D4C|A+
+Hidden Leaf Hero (naruto)|D4C:LT|A+
+SM The World Alternate (smtwau)|SM|A+
+Lord Boros (boros)|GER|A+|679
+Yuki Tsukumo (yuki)|C-MOON|A+
+Sumo Platinum (sumo sp)|SP|A+|857
+Vexus Crimson (vkc)|KC|A+|1464
+Cursed Aero Platinum (orasmith)|AEROSMITH|A+|192
+The Noob Over Heaven (noob)|TWOH|A+
+Vexus Crimson (vkcr)|KCR|A+|1464
+Sumo Platinum (sumo sptw)|SPTW|A+|857
+Sumo World (sumo tw)|TW|A+|857
+Holiday Tangle (ht)|HP|A+
+Jester Crimson (jkc)|KC|A-
+Buggy D. Clown (buggy)|STW|A-
+Digital Star Platinum (dsptw)|SPTW|A-|1179
+Neon Ascension Diamond (neon)|CD|A-
+The World Greatest High (twghoh)|TWOH|A-
+Killer Queen: Bites the Ice (ice btd)|KQ:BTD|A-
+King Crampus (krampus)|KCR|A-
+Ace|MR|A-
+Devil Moon (dmoon mih)|MIH|A-
+Yuki Tsukumo (yuki mih)|MIH|A-
+King Peppermint (pep kc)|KC|A-
+One Above All (oaa)|MIH|A-
+Jester Crimson (jkcr)|KCR|A-|593
+Star Waifu: The World (fem sptw)|SPTW|A-
+Merry & Sweet (merry s&w)|S&W|A-
+Merry & Sweet (merry s&w:gb)|S&W:GB|A-
+The Gifter (gifter)|TH|A-
+Spearmint Chariot (spearmint)|SC|A-
+The World Greatest High (twgh)|TW|A-
+Moon of Christmas Present (mocp)|CMOON|A-
+Weathersnake|WR|A-
+Muffet|HG|A-
+Stormy|WR|A-
+Heaven Act 4 (ha4)|TA4|A-|289
+Crazy Idol (idol)|CD|A-
+The Big Nut (nutcracker)|SF|A-
+Train to Hell (tth)|D4C:LT|A-
+Thanos|TH|A-
+Pumpkin Patch (ppsf)|STF|A-
+STW Alternate (alt stw)|STW|A-
+King Peppermint (pep kcr)|KCR|A-|786
+Pyro|MR|A-
+Spearmint Chariot (spearmint scr)|SCR|A-
+The Grinch (grinch)|WS|A-
+Luffy Gear 4 (luffy)|SP|A-
+Soft & Starry (starry s&w)|S&W|A-
+Soft & Starry (starry s&w:gb)|S&W:GB|A-
+OVA The World (twoh ova)|TWOH|A-
+The World 2 (tw2oh)|TWOH|A-
+Bubblegum|DD|B
+Manga|DD|B
+The Waifu Alternate Universe|TWAU|B
+Asuna|SC|B
+Deimos|KCR|B|429
+Spunch Bob G:B (spongebob g:b)|S&W:GB|B
+Sheared Snow Golem|MR|B
+Ghost Chariot Requiem (wispy)|SCR|B|314
+Snake of Christmas Past (socp)|MIH|B|514
+Candy Corn|WS|B|739
+Undead Flare|MR|B
+Crimson Mist|PH|B
+Volcanic|GER|B
+Hexed|GER|B
+Grinch|CMOON|B
+Grinch|MIH|B
+Luffy|SPTW|B
+Snake of Christmas Past (socp)|CMOON|B
+Festive Free|STF|B
+Shadow|KQ|B
+Shadow|KQ:BTD|B
+Anime|WR|B
+Manga|WR|B
+Plague Doctor|CPAU|B
+Devil Pepper|CPAU|B
+Sukuna|KCR|B
+Whisper|6P|B
+Headhunter|6P|B
+Casull|6P|B
+Glacier Trackstar|WA|B
+Kikoku|ANUBIS|B|214
+Takoizu Dragon|BB|B
+Elucidator and Dark Repulsor (SAO)|ANUBIS|B|115
+Snow Golem|MR|B
+Dead|GE|B
+Dead|GER|B
+Asuna|SCR|B
+Star Platinum OVA (sp ova)|SP|B
+Cream Nog|CREAM|B
+Comic Venom|STF|B|179
+Moon of Christmas Past (mocp)|MIH|B
+Retro Scary Monsters The World (rsmtw)|SM|B
+King of End (kc)|KC|B
+Elizabeth Liones|CD|B
+Kanshou and Bakuya|ANUBIS|B
+Frost|HG|B
+Aerosleigh|AEROSMITH|B|614
+Elf Pistols|6P|B
+Ice Cold Chilli Pepper (ice rhcp)|RHCP|B
+Ice Cold Chilli Pepper AU (cpau)|CPAU|B
+Undead Hand|TH|B
+Jade Peace|CD|B|144
+Megumin|KQ|B|134
+Megumin|KQ:BTD|B
+Warhammer Titan|WA|B
+Candy Corn|CMOON|F
+Candy Corn|MIH|F
+OVA|SPTW|F
+Vela Nova|CMOON|F
+Charged Creeper Queen|KQ:BTD|F
+King of End (kcr)|KCR|F
+Spiderman|STF|F
+Venom|STF|F
+Star Platinum: Stone Ocean (sp:so)|SP|F|64.3
+Triangle Guard|D4C|F
+Triangle Guard|D4C:LT|F
+Spunchbob S&W (spongebob s&w)|S&W|F
+Biblically Accurate Golden Experience|GE|F
+Biblically Accurate Golden Experience Requiem|GER|F
+Sasageyo AOT|ANUBIS|F
+Scary Monsters The World (smtw)|SM|F
+Ultimate|TWAU|F
+Vela Nova|MIH|F
+Sakura|CD|F
+Tsunade|CD|F
+Golden Frieza|RHCP|F
+Golden Frieza|CPAU|F
+Star|SP|F
+Anti Umbral|HP|F
+Neo|TWAU|F
+Deimos|WS|F
+Nocturne|CREAM|F
+Jaguar|SP|F
+Scarlet Queen|KC|F
+Manga King Crimson (oreo kc)|KC|F|42.7
+Magician Red Over Heaven (mroh)|MR|F|8.6
+The World OVA (ova tw)|TW|F
+The World 2|TW|F
+Star Waifu (sptw)|SPTW|F
+Deimos|CMOON|F|32.1
+Deimos|MIH|F|32.1
+Stone Platinum|STF|F
+Jaguar|SPTW|F
+Cracked|TWAU|F|40.5
+Sorcerers Red|MR|F
+Scarlet Queen|KCR|F
+Manga King Crimson Requiem (oreo kcr)|KCR|F|67
+D4SHE|D4C|F
+D4SHE|D4C:LT|F
+Mintsnake|WS|F
+All Star|WS|F
+Mintsnake|CMOON|F
+All Star|CMOON|F
+Mintsnake|MIH|F
+All Star|MIH|F
+Gold and Wet|S&W:GB|F
+Aero Oh|AEROSMITH|F|10.7
+Misaka Mikoto|RHCP|F
+Misaka Mikoto|CPAU|F
+Devil4c|D4C|F
+Devil4c|D4C:LT|F
+Reverse|SM|F
+Gold and Wet|S&W|F
+Star Striped|MR|F
+Virus Vessel|PH|F
+Eldritch|HG|F
+Deimos|KQ|F
+Deimos|KQ:BTD|F
+Female Hando|TH|F
+Creeper Queen|KQ|F
+Creeper Queen|KQ:BTD|F
+Chromo|TH|F
+Shining Ruby|CD|F
+Emperor OVA|6P|F
+Uber Spy|SC|F|22.9
+Uber Spy|SCR|F
+Gold|SP|F
+Action Figure|SP|F
+Gold|SPTW|F
+Action Figure|SPTW|F
+Vinegar Crimson|KC|F|20
+Vinegar Crimson Requiem|KCR|F|20
+Heaven Spirit|GE|F
+Heaven Spirit|GER|F
+Old Mr President (mr.p)|MP|F|5.2
+Toy|SF|F|7.1
+Pinky Fingers|SF|F|16.4
+SC OVA|SC|F
+OVA|SCR|F
+Killer Reveal|KQ|F|5
+Killer Reveal|KQ:BTD|F
+Emperor|6P|F|5.7
+Holly's Sickness|HP|F|8.2
+Linked Sword|ANUBIS|F|5.2
+Black|HG|F
+Purple|HG|F
+Yellow|HG|F
+Charmy Green|SP|F
+Charmy Green|SPTW|F
+Rock Unleashed|STF|F
+Magellan|PH|F
+Glock Fade|6P|F
+Nerf Gun|6P|F
+Glock-18|6P|F
+Vanilla Ice Cream|(unlisted)|F
+Actually Red Hot Chilli Pepper (arhcp)|RHCP|F
+Actually Red Hot Chilli Pepper AU (arhcpau)|CPAU|F
+Frozone|WA|F
+MS Aerosmith|AEROSMITH|F
+The Other Hand|TH|F
+Nonosama Bo (Enel Pole)|BB|F
+Itadori Yuji|SF|F
+Mr Joestar|MP|F
+Nexus King Crimson|KC / KCR|G|1000
+Cornsnake|WS|G|929
+Mustard Platinum|SP|G|14`;
+async function importSkins(){
+ if(!unlocked)return;
+ if(!confirm('Add 316 skins? Your own items stay. Skins imported before will be reset to the starter values.'))return;
+ const rows=SEED.trim().split('\n'),obj={};
+ rows.forEach((l,i)=>{const[n,s,t,v]=l.split('|'),T=TIER[t],id=1000+i;
+  obj[id]={id,name:n+' · '+s,val:Math.round((+v||T[0])*SCALE*10)/10,cat:'Skin',rar:T[1],dem:T[2],trd:'Stable',sta:'Fair',img:''}});
+ try{
+  if(online){const r=await fetch(base+'/items.json',{method:'PATCH',body:JSON.stringify(obj)});if(!r.ok)throw 0}
+  items=items.filter(f=>!(f.id>=1000&&f.id<1400)).concat(Object.values(obj));cache();all();say('Imported '+rows.length+' skins.');
+ }catch(e){alert('Import failed. Check your database address and rules.')}
+}
+const ib=document.createElement('button');ib.className='btn g';ib.style.marginTop='12px';ib.textContent='Import starter skins';ib.onclick=importSkins;$('lockb').parentNode.appendChild(ib);
 all();load();
 </script>
 </body>
