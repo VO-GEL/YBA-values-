@@ -155,7 +155,7 @@ async function lookupSkinImage(f){
 }
 async function hydrateImages(){
  const ids=new Set();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage)ids.add(el.dataset.itemImage)});
- for(const id of ids){const f=items.find(x=>String(x.id)===id);if(f&&!f.img)lookupSkinImage(f)}
+ let started=0;for(const id of ids){const f=items.find(x=>String(x.id)===id);if(f&&!f.img&&!imageCache.has(id)&&!imagePending.has(id)){lookupSkinImage(f);if(++started>=12)break}}
 }
 window.addEventListener('scroll',hydrateImages,{passive:true});
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
@@ -199,7 +199,7 @@ $('res').innerHTML=me+th?`<div class="res ${c[0]}"><span>${c[1]}</span><span>${d
 $('sides').onclick=e=>{const t=e.target.closest('.slot');if(!t)return;const{s,i}=t.dataset;const x=trade[s][i];
 if(x){if(x.q<9)x.q++;else trade[s][i]=null;calc();return}
 if(!items.length)return alert('No items yet.');pick={s,i};$('mq').value='';ml();$('m').classList.add('on')};
-function ml(){const q=$('mq').value.toLowerCase();$('ml').innerHTML=items.filter(f=>f.name.toLowerCase().includes(q)).map(f=>`<div class="li" data-id="${f.id}" data-item-image="${esc(f.id)}">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)}</small></div></div>`).join('')||'<div class="empty">Nothing found.</div>'}
+function ml(){const q=$('mq').value.toLowerCase();$('ml').innerHTML=items.filter(f=>f.name.toLowerCase().includes(q)).map(f=>`<div class="li" data-id="${f.id}" data-item-image="${esc(f.id)}">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)}</small></div></div>`).join('')||'<div class="empty">Nothing found.</div>';hydrateImages()}
 $('mq').oninput=ml;
 $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;trade[pick.s][pick.i]={id:+r.dataset.id,q:1};$('m').classList.remove('on');calc()};
 $('m').onclick=e=>{if(e.target.id==='m')$('m').classList.remove('on')};
