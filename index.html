@@ -138,24 +138,69 @@ async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/
 const fmt=n=>n>=1e9?+(n/1e9).toFixed(2)+'B':n>=1e6?+(n/1e6).toFixed(2)+'M':n>=1e3?+(n/1e3).toFixed(2)+'K':String(n);
 const parse=s=>{const m=String(s).trim().toUpperCase().match(/^([\d.,]+)\s*([KMB])?$/);if(!m)return NaN;return parseFloat(m[1].replace(/,/g,''))*({K:1e3,M:1e6,B:1e9}[m[2]]||1)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const imageCache=new Map(),imagePending=new Set();
-const pic=f=>f&&f.img?'<img loading="lazy" alt="'+esc(f.name||'YBA item')+'" src="'+esc(f.img)+'">':'<div class="ph" aria-label="Image unavailable">'+esc((f.name||'?')[0])+'</div>';
+const imageCache=new Map(),imagePending=new Set(),imageAttempts=new Map();
+const pic=f=>f&&f.img?'<img loading="lazy" alt="'+esc(f.name||'YBA item')+'" src="'+esc(f.img)+'" onerror="this.onerror=null;this.style.display=\'none\';this.parentElement.dataset.imageFailed=\'1\'">':'<div class="ph" aria-label="Image unavailable">'+esc((f.name||'?')[0])+'</div>';
+function normalizeImageTitle(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
+async function requestWikiJson(url){
+ let lastError;
+ for(const target of [url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url)]){
+  try{
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),9000);
+   try{
+    const response=await fetch(target,{signal:controller.signal,cache:'no-store'});
+    if(!response.ok)throw new Error('Image search HTTP '+response.status);
+    const data=await response.json();
+    if(!data||typeof data!=='object'||data.error)throw new Error('Invalid image search response');
+    return data;
+   }finally{clearTimeout(timeout)}
+  }catch(e){lastError=e}
+ }
+ throw lastError||new Error('Image search failed');
+}
+function showItemImage(id,url,name){
+ document.querySelectorAll('[data-item-image]').forEach(el=>{
+  if(String(el.dataset.itemImage)!==String(id))return;
+  const im=document.createElement('img');im.loading='lazy';im.alt=name||'YBA item';im.src=url;
+  im.onerror=()=>{im.onerror=null;im.style.display='none';el.dataset.imageFailed='1'};
+  if(el.tagName==='IMG')el.src=url;else el.replaceChildren(im);
+ });
+}
 async function lookupSkinImage(f){
- if(!f||f.img||imageCache.has(String(f.id))||imagePending.has(String(f.id)))return;
- const id=String(f.id);imagePending.add(id);
+ if(!f||f.img||imagePending.has(String(f.id)))return;
+ const id=String(f.id),attempts=imageAttempts.get(id)||0;
+ if(attempts>=3)return;
+ imagePending.add(id);imageAttempts.set(id,attempts+1);
  try{
   const name=String(f.name||'').split(' · ')[0].trim();
-  const url='https://your-bizarre-adventure.fandom.com/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name)+'&gsrnamespace=0&gsrlimit=10&prop=pageimages&piprop=thumbnail&pithumbsize=256&format=json&origin=*';
-  const response=await fetch(url);if(!response.ok)throw Error('lookup failed');
-  const data=await response.json(),pages=Object.values((data.query&&data.query.pages)||{});
-  const key=name.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-  const found=pages.filter(p=>p.thumbnail&&p.thumbnail.source).map(p=>({p,title:String(p.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()})).sort((a,b)=>(b.title===key?100:b.title.startsWith(key+' ')?60:b.title.includes(key)?30:0)-(a.title===key?100:a.title.startsWith(key+' ')?60:a.title.includes(key)?30:0)).find(x=>x.title===key||x.title.startsWith(key+' ')||x.title.includes(key));
-  if(found){f.img=found.p.thumbnail.source;imageCache.set(id,f.img);cache();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage===id){if(el.tagName==='IMG')el.src=f.img;else{const im=document.createElement('img');im.loading='lazy';im.alt=f.name||'YBA item';im.src=f.img;el.replaceChildren(im)}}})}
- }catch(e){imageCache.set(id,'')}finally{imagePending.delete(id)}
+  if(!name)return;
+  const url='https://your-bizarre-adventure.fandom.com/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent('intitle:'+name)+'&gsrnamespace=0&gsrlimit=10&prop=pageimages&piprop=thumbnail&pithumbsize=256&format=json&origin=*';
+  const data=await requestWikiJson(url);
+  const pages=Object.values((data.query&&data.query.pages)||{});
+  const key=normalizeImageTitle(name);
+  const ranked=pages.filter(p=>p.thumbnail&&p.thumbnail.source).map(p=>({p,title:normalizeImageTitle(p.title)})).map(x=>({...x,score:x.title===key?100:x.title.startsWith(key+' ')?55:0})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  const found=ranked[0];
+  if(found){
+   const imageUrl=found.p.thumbnail.source;
+   f.img=imageUrl;imageCache.set(id,imageUrl);cache();showItemImage(id,imageUrl,f.name);
+  }else{
+   // A valid search with no safe matching page should not display an unrelated image.
+   imageCache.set(id,'no-match');
+  }
+ }catch(e){
+  // Retry transient API/network failures instead of permanently caching a failed lookup.
+  if((imageAttempts.get(id)||0)<3)setTimeout(()=>{hydrateImages()},1800);
+ }finally{imagePending.delete(id)}
 }
 async function hydrateImages(){
- const ids=new Set();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage)ids.add(el.dataset.itemImage)});
- let started=0;for(const id of ids){const f=items.find(x=>String(x.id)===id);if(f&&!f.img&&!imageCache.has(id)&&!imagePending.has(id)){lookupSkinImage(f);if(++started>=12)break}}
+ const ids=new Set();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage)ids.add(String(el.dataset.itemImage))});
+ let started=0;
+ for(const id of ids){
+  const f=items.find(x=>String(x.id)===id);
+  if(f&&!f.img&&!imagePending.has(id)&&!imageCache.has(id)&&(imageAttempts.get(id)||0)<3){
+   lookupSkinImage(f);
+   if(++started>=4)break;
+  }
+ }
 }
 window.addEventListener('scroll',hydrateImages,{passive:true});
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
