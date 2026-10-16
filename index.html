@@ -145,12 +145,12 @@ async function lookupSkinImage(f){
  const id=String(f.id);imagePending.add(id);
  try{
   const name=String(f.name||'').split(' · ')[0].trim();
-  const url='https://yba.fandom.com/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name+' YBA')+'&gsrnamespace=0&gsrlimit=5&prop=pageimages&piprop=thumbnail&pithumbsize=256&format=json&origin=*';
+  const url='https://your-bizarre-adventure.fandom.com/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name)+'&gsrnamespace=0&gsrlimit=10&prop=pageimages&piprop=thumbnail&pithumbsize=256&format=json&origin=*';
   const response=await fetch(url);if(!response.ok)throw Error('lookup failed');
   const data=await response.json(),pages=Object.values((data.query&&data.query.pages)||{});
   const key=name.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-  const found=pages.find(p=>p.thumbnail&&p.thumbnail.source&&String(p.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===key);
-  if(found){f.img=found.thumbnail.source;imageCache.set(id,f.img);cache();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage===id){if(el.tagName==='IMG')el.src=f.img;else{const im=document.createElement('img');im.loading='lazy';im.alt=f.name||'YBA item';im.src=f.img;el.replaceChildren(im)}}})}
+  const found=pages.filter(p=>p.thumbnail&&p.thumbnail.source).map(p=>({p,title:String(p.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()})).sort((a,b)=>(b.title===key?100:b.title.startsWith(key+' ')?60:b.title.includes(key)?30:0)-(a.title===key?100:a.title.startsWith(key+' ')?60:a.title.includes(key)?30:0)).find(x=>x.title===key||x.title.startsWith(key+' ')||x.title.includes(key));
+  if(found){f.img=found.p.thumbnail.source;imageCache.set(id,f.img);cache();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage===id){if(el.tagName==='IMG')el.src=f.img;else{const im=document.createElement('img');im.loading='lazy';im.alt=f.name||'YBA item';im.src=f.img;el.replaceChildren(im)}}})}
  }catch(e){imageCache.set(id,'')}finally{imagePending.delete(id)}
 }
 async function hydrateImages(){
