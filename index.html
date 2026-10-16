@@ -558,10 +558,9 @@ async function importSkins(){
  });
  const fresh={...obj,...standObj};
  try{
-  if(online){const patch={...fresh};current.forEach(f=>{if(f.id!==undefined)patch[f.id]=f});const r=await fetch(base+'/items.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw 0}
   const keep=current.filter(f=>!(Number(f.id)>=1000&&Number(f.id)<1400)&&!(Number(f.id)>=2000&&Number(f.id)<2100));
-  const custom=current.filter(f=>Number(f.id)>=2000&&Number(f.id)<2100&&knownStandNames.has(String(f.name||'').toLowerCase()));
-  const merged=new Map([...keep,...Object.values(fresh),...custom].map(f=>[String(f.id),f]));
+  if(online){const patch={};keep.forEach(f=>{if(f.id!==undefined)patch[f.id]=f});Object.assign(patch,fresh);const r=await fetch(base+'/items.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw 0}
+  const merged=new Map([...keep,...Object.values(fresh)].map(f=>[String(f.id),f]));
   items=[...merged.values()];cache();all();say('Updated '+rows.length+' starter skins, checked '+STAND_SEED.length+' base stands, normalized categories, and set Star Potion status to Fair.');
  }catch(e){alert('Import failed. Check your database address and rules.')}
 }
