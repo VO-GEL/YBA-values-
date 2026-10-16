@@ -522,12 +522,17 @@ function estimatedDemand(tier,name){
  if(/manga|ova|deimos|actually|glock|nerf gun|cornsnake|mustard/.test(name.toLowerCase()))d--;
  return Math.max(1,Math.min(10,d));
 }
+function estimatedStatus(demand){
+ if(demand>=8)return 'Underpaid';
+ if(demand<=3)return 'Overpaid';
+ return 'Fair';
+}
 async function importSkins(){
  if(!unlocked)return;
  if(!confirm('Rebuild the skin list with recalculated values, rarity, and demand, and add the base stands? Imported starter entries will be replaced; other owner-added items stay.'))return;
  const rows=SEED.trim().split('\n'),obj={},standObj={};
  rows.forEach((l,i)=>{const[n,s,t]=l.split('|'),id=1000+i;const name=s&&s!=='(unlisted)'?n+' · '+s:n;
-  obj[id]={id,name,val:estimateSkinValue(n,t,i,rows.length),cat:'Skin',rar:estimatedRarity(t,n),dem:estimatedDemand(t,n),trd:'Stable',sta:'Fair',img:''};
+  obj[id]={id,name,val:estimateSkinValue(n,t,i,rows.length),cat:'Skin',rar:estimatedRarity(t,n),dem:estimatedDemand(t,n),trd:'Stable',sta:estimatedStatus(estimatedDemand(t,n)),img:''};
  });
  STAND_SEED.forEach(([name,rar,val,dem],i)=>{const id=2000+i;standObj[id]={id,name,val:Math.round(val*10)/10,cat:'Stand',rar,dem,trd:'Stable',sta:'Fair',img:''}});
  const fresh={...obj,...standObj};
