@@ -112,7 +112,7 @@ const DEFAULTS=[
 {id:2,name:'The World',val:2.5e6,cat:'Stand',rar:'Legendary',dem:10,trd:'Rising',sta:'Fair',img:''},
 {id:3,name:'Killer Queen',val:1.2e6,cat:'Stand',rar:'Rare',dem:7,trd:'Stable',sta:'Fair',img:''},
 {id:4,name:'Rokakaka',val:150e3,cat:'Item',rar:'Uncommon',dem:6,trd:'Falling',sta:'Overpaid',img:''}];
-const online=DB.startsWith('https://'),base=DB.replace(/\/$/,'');
+const online=DB.startsWith('https://')&&!DB.includes('PASTE')&&!DB.includes('yourname'),base=DB.replace(/\/$/,'');
 let items=[],trade={me:[null,null,null,null],them:[null,null,null,null]},editId=null,img='',pick=null,cat='All',unlocked=false;
 try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
 try{unlocked=sessionStorage.getItem('yba-owner')==='1'}catch(e){}
@@ -120,13 +120,16 @@ if(!items.length&&!online)items=DEFAULTS;
 const $=i=>document.getElementById(i);
 const cache=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
 const say=t=>$('sync').textContent=t;
-async function load(){if(!online)return;try{const r=await fetch(base+'/items.json');if(!r.ok)throw 0;const d=await r.json();items=d?Object.values(d):[];cache();cleanTrade();all()}catch(e){say('Could not reach the database. Showing saved data.')}}
+async function load(){if(!online){if(!items.length)items=DEFAULTS.slice();all();return}try{const r=await fetch(base+'/items.json');if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();if(d)items=Object.values(d);else if(!items.length)items=DEFAULTS.slice();cache();cleanTrade();all();say('Connected to the value database.')}catch(e){if(!items.length)items=DEFAULTS.slice();all();say('Database unavailable. Showing saved items; online changes may not sync.')}}
 async function put(f){cache();if(!online)return;try{const r=await fetch(base+'/items/'+f.id+'.json',{method:'PUT',body:JSON.stringify(f)});if(!r.ok)throw 0;say('Saved for everyone.')}catch(e){alert('Could not save online. Check your database address and rules.')}}
 async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/items/'+id+'.json',{method:'DELETE'});if(!r.ok)throw 0}catch(e){alert('Could not delete online.')}}
 const fmt=n=>n>=1e9?+(n/1e9).toFixed(2)+'B':n>=1e6?+(n/1e6).toFixed(2)+'M':n>=1e3?+(n/1e3).toFixed(2)+'K':String(n);
 const parse=s=>{const m=String(s).trim().toUpperCase().match(/^([\d.,]+)\s*([KMB])?$/);if(!m)return NaN;return parseFloat(m[1].replace(/,/g,''))*({K:1e3,M:1e6,B:1e9}[m[2]]||1)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const pic=f=>f.img?`<img src="${f.img}" alt="">`:`<div class="ph">${esc(f.name[0]||'?')}</div>`;
+const imageCache=new Map();
+const pic=f=>f.img?`<img src="${f.img}" alt="${esc(f.name)}" loading="lazy" onerror="this.style.display='none'">`:`<div class="ph auto-ph" data-auto-skin="${esc(f.name)}">${esc(f.name[0]||'?')}</div>`;
+async function lookupSkinImage(rawName){const name=String(rawName||'').split(' · ')[0];if(imageCache.has(name))return imageCache.get(name);const task=(async()=>{try{const api='https://your-bizarre-adventure.fandom.com/api.php?action=query&format=json&origin=*&list=search&srnamespace=6&srlimit=8&srsearch='+encodeURIComponent(name+' YBA');const r=await fetch(api);if(!r.ok)return '';const d=await r.json();const pages=d?.query?.search||[];const norm=s=>String(s||'').toLowerCase().replace(/^file:/,'').replace(/\.(png|jpe?g|webp|gif)$/,'').replace(/[^a-z0-9]+/g,'');const wanted=norm(name);const score=title=>{const t=norm(title);if(t===wanted)return 100;if(t.includes(wanted)||wanted.includes(t))return 80;const words=wanted.match(/[a-z0-9]{3,}/g)||[];return words.filter(w=>t.includes(w)).length/Math.max(words.length,1)*60};const best=pages.map(x=>({title:x.title,score:score(x.title)})).sort((a,b)=>b.score-a.score)[0];if(!best||best.score<55)return '';const info=await fetch('https://your-bizarre-adventure.fandom.com/api.php?action=query&format=json&origin=*&titles='+encodeURIComponent(best.title)+'&prop=imageinfo&iiprop=url&iiurlwidth=180');if(!info.ok)return '';const j=await info.json();const page=Object.values(j?.query?.pages||{})[0];return page?.imageinfo?.[0]?.thumburl||page?.imageinfo?.[0]?.url||''}catch(e){return ''}})();imageCache.set(name,task);return task}
+async function hydrateImages(){const nodes=[...document.querySelectorAll('[data-auto-skin]')];for(const el of nodes){if(el.dataset.loading==='1'||el.dataset.loaded==='1')continue;el.dataset.loading='1';const name=el.getAttribute('data-auto-skin')||'';const url=await lookupSkinImage(name);if(!el.isConnected)continue;el.dataset.loaded='1';el.removeAttribute('data-loading');if(url){const im=document.createElement('img');im.src=url;im.alt=name;im.loading='lazy';im.onerror=()=>im.remove();el.replaceWith(im)}}}
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
 const titles={v:'YBA Values',c:'Calculator',o:'Owner panel'};
 function go(t){['v','c','o'].forEach(s=>$(s).hidden=s!==t);$('ttl').textContent=titles[t];menu(false);scrollTo(0,0);if(t==='o')own();if(t==='v')load()}
@@ -145,10 +148,10 @@ const l=items.filter(f=>f.name.toLowerCase().includes(q)&&(cat==='All'||f.cat===
 $('grid').innerHTML=l.length?l.map(f=>`<div class="card"><span class="badge">${esc(f.rar)}</span><div class="img">${pic(f)}</div><h3>${esc(f.name)}</h3>
 <div><span class="st" style="color:${stc[f.sta]}">${f.sta}</span><span class="big">${fmt(f.val)}</span></div>
 <div class="bar">${Array.from({length:10},(_,i)=>`<i class="${i<f.dem?'f':''}"></i>`).join('')}</div>
-<div class="row"><span>Demand</span><b>${f.dem}/10</b></div><div class="row"><span>Trend</span><b>${arr[f.trd]}</b></div><div class="row"><span>Category</span><b>${esc(f.cat)}</b></div></div>`).join(''):'<div class="empty" style="grid-column:1/-1">Nothing found.</div>'}
+<div class="row"><span>Demand</span><b>${f.dem}/10</b></div><div class="row"><span>Trend</span><b>${arr[f.trd]}</b></div><div class="row"><span>Category</span><b>${esc(f.cat)}</b></div></div>`).join(''):'<div class="empty" style="grid-column:1/-1">Nothing found.</div>';hydrateImages()}
 $('q').oninput=grid;
 $('chips').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;grid()}};
-function list(){$('list').innerHTML=items.length?items.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):'<div class="empty">Add your first item above.</div>'}
+function list(){$('list').innerHTML=items.length?items.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):'<div class="empty">Add your first item above.</div>';hydrateImages()}
 $('list').onclick=async e=>{const d=e.target.dataset;if(d.d){if(!confirm('Delete this item?'))return;items=items.filter(f=>f.id!=d.d);cleanTrade();all();await del(d.d)}
 if(d.e){const f=items.find(x=>x.id==d.e);editId=f.id;img=f.img;$('n').value=f.name;$('val').value=fmt(f.val);$('cat').value=f.cat;$('rar').value=f.rar;$('dem').value=f.dem;$('trd').value=f.trd;$('sta').value=f.sta;$('ft').textContent='Edit item';$('cancel').hidden=false;scrollTo(0,0)}};
 function reset(){editId=null;img='';['n','val'].forEach(i=>$(i).value='');$('img').value='';$('dem').value=5;$('ft').textContent='Add an item';$('cancel').hidden=true}
