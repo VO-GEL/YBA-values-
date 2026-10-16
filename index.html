@@ -248,8 +248,6 @@ const oldMl=$('ml').onclick;
 $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;if(listingPick&&!$('t').hidden){const id=+r.dataset.id;if(!items.some(f=>f.id===id))return;const arr=listingPick.side==='offer'?listingOffer:listingWant;const current=arr[listingPick.index];if(current&&current.id===id)current.q=Math.min(9,(current.q||1)+1);else arr[listingPick.index]={id,q:1};listingPick=null;$('m').classList.remove('on');listingSlots('offer');listingSlots('want');return}if(pick){trade[pick.s][pick.i]={id:+r.dataset.id,q:1};$('m').classList.remove('on');calc()}};
 const oldGo=go;
 go=function(t){oldGo(t);if(t==='t'){listingSlots('offer');listingSlots('want');loadTradeListings()}};
-function all(){grid();list();calc();if(!$('t').hidden){listingSlots('offer');listingSlots('want')}}
-
 function all(){grid();list();calc();if(!$('t').hidden){listingSlots('offer');listingSlots('want');renderTradeListings()}hydrateImages()}
 /* ===== STARTER SKINS IMPORT ===== */
 const SCALE=1; // 1 = values in Rokas. Change this if your own values use a different scale
