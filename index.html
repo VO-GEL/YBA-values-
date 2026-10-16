@@ -528,18 +528,41 @@ function estimatedStatus(demand){
  if(demand<=3)return 'Overpaid';
  return 'Fair';
 }
+function normalizeCategory(item){
+ const n=String(item.name||'').toLowerCase().trim();
+ const c=String(item.cat||'').toLowerCase().trim();
+ if(/star potion|rokakaka|roka|pure roka|redeemed|redeemed? chest|mysterious arrow|arrow|left arm|heart of the saint|pelvis of the saint|rib cage|diary|scroll|coin|quinton|zeppeli|spec item|item/.test(n))return 'Item';
+ if(c==='skin'||c==='shiny'||/\s·\s/.test(String(item.name||''))||c==='skins')return 'Skin';
+ if(c==='stand'||c==='stands'||c==='base stand'||c==='base stands')return 'Stand';
+ if(c==='item'||c==='items')return 'Item';
+ return item.cat||'Other';
+}
 async function importSkins(){
  if(!unlocked)return;
- if(!confirm('Rebuild the skin list with recalculated values, rarity, and demand, and add the base stands? Imported starter entries will be replaced; other owner-added items stay.'))return;
+ if(!confirm('Rebuild starter skins and base stands, normalize categories, and correct obvious item statuses? Existing custom entries and values are preserved.'))return;
  const rows=SEED.trim().split('\n'),obj={},standObj={};
- rows.forEach((l,i)=>{const[n,s,t]=l.split('|'),id=1000+i;const name=s&&s!=='(unlisted)'?n+' · '+s:n;
-  obj[id]={id,name,val:estimateSkinValue(n,t,i,rows.length),cat:'Skin',rar:estimatedRarity(t,n),dem:estimatedDemand(t,n),trd:'Stable',sta:estimatedStatus(estimatedDemand(t,n)),img:''};
+ rows.forEach((l,i)=>{const[n,code,t]=l.split('|'),id=1000+i;const name=code&&code!=='(unlisted)'?n+' · '+code:n;
+  const dem=estimatedDemand(t,n);
+  obj[id]={id,name,val:estimateSkinValue(n,t,i,rows.length),cat:'Skin',rar:estimatedRarity(t,n),dem,trd:'Stable',sta:estimatedStatus(dem),img:''};
  });
  STAND_SEED.forEach(([name,rar,val,dem],i)=>{const id=2000+i;standObj[id]={id,name,val:Math.round(val*10)/10,cat:'Stand',rar,dem,trd:'Stable',sta:'Fair',img:''}});
+ const current=items.map(f=>{
+  const normalized={...f,cat:normalizeCategory(f)};
+  if(/star potion/i.test(normalized.name||'')){normalized.sta='Fair';if(+normalized.dem>=8)normalized.dem=6;}
+  return normalized;
+ });
+ const knownStandNames=new Set(STAND_SEED.map(x=>x[0].toLowerCase()));
+ const existingStandNames=new Set(current.filter(f=>f.cat==='Stand').map(f=>String(f.name||'').toLowerCase()));
+ STAND_SEED.forEach(([name,rar,val,dem],i)=>{
+  if(!existingStandNames.has(name.toLowerCase())){const id=2000+i;standObj[id]={id,name,val:Math.round(val*10)/10,cat:'Stand',rar,dem,trd:'Stable',sta:'Fair',img:''};}
+ });
  const fresh={...obj,...standObj};
  try{
-  if(online){const r=await fetch(base+'/items.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(fresh)});if(!r.ok)throw 0}
-  items=items.filter(f=>!(f.id>=1000&&f.id<1400)&&!(f.id>=2000&&f.id<2100)).concat(Object.values(fresh));cache();all();say('Rebuilt '+rows.length+' skin estimates and added '+STAND_SEED.length+' base stands. Images left blank unless a verified image is added.');
+  if(online){const patch={...fresh};current.forEach(f=>{if(f.id!==undefined)patch[f.id]=f});const r=await fetch(base+'/items.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw 0}
+  const keep=current.filter(f=>!(Number(f.id)>=1000&&Number(f.id)<1400)&&!(Number(f.id)>=2000&&Number(f.id)<2100));
+  const custom=current.filter(f=>Number(f.id)>=2000&&Number(f.id)<2100&&knownStandNames.has(String(f.name||'').toLowerCase()));
+  const merged=new Map([...keep,...Object.values(fresh),...custom].map(f=>[String(f.id),f]));
+  items=[...merged.values()];cache();all();say('Updated '+rows.length+' starter skins, checked '+STAND_SEED.length+' base stands, normalized categories, and set Star Potion status to Fair.');
  }catch(e){alert('Import failed. Check your database address and rules.')}
 }
 const ib=document.createElement('button');ib.className='btn g';ib.style.marginTop='12px';ib.textContent='Import starter skins';ib.onclick=importSkins;$('lockb').parentNode.appendChild(ib);
