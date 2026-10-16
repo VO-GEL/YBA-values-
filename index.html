@@ -46,7 +46,7 @@ input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-ra
 .side h4{margin:0 0 6px;font-size:15px}.side .v{font-size:22px;font-weight:700;color:var(--ac)}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .slot{aspect-ratio:1;border:1.5px dashed var(--line);border-radius:12px;display:grid;place-items:center;position:relative;background:var(--card);font-size:26px;color:var(--mu);cursor:pointer;padding:4px}
-.slot img{max-width:70%;max-height:60%}.slot span{position:absolute;bottom:3px;font-size:11px;font-weight:700;color:var(--tx)}
+.slot img{max-width:70%;max-height:60%}.slot .slotname{font-size:12px;line-height:1.1;text-align:center;max-width:100%;overflow-wrap:anywhere}.slot span{position:absolute;bottom:3px;font-size:11px;font-weight:700;color:var(--tx)}
 .slot em{position:absolute;top:3px;left:5px;font-size:11px;font-style:normal;background:#fff;border-radius:6px;padding:0 5px;border:1px solid var(--line)}
 .res{border-radius:14px;padding:14px;margin-top:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
 .win{background:#e3f6ee;color:var(--ok)}.lose{background:#fde8e9;color:var(--bad)}.fair{background:#fff3dc;color:var(--warn)}
@@ -217,12 +217,12 @@ async function loadTradeListings(){
 }
 function listingSlots(which){
  const arr=which==='offer'?listingOffer:listingWant;
- $(''+(which==='offer'?'offerSlots':'wantSlots')).innerHTML=arr.map((x,i)=>{const f=x&&items.find(v=>String(v.id)===String(x.id));return '<button type="button" class="slot" data-list-side="'+which+'" data-list-index="'+i+'" aria-label="Choose '+(which==='offer'?'offered':'wanted')+' item">'+(f?'<em>'+(x.q||1)+'</em>'+esc(f.name)+'<span>'+fmt(f.val)+'</span>':'+')+'</button>'}).join('');
+ $(''+(which==='offer'?'offerSlots':'wantSlots')).innerHTML=arr.map((x,i)=>{const f=x&&items.find(v=>String(v.id)===String(x.id));return '<button type="button" class="slot" data-list-side="'+which+'" data-list-index="'+i+'" aria-label="Choose '+(which==='offer'?'offered':'wanted')+' item">'+(f?'<em>'+(x.q||1)+'</em>'+(f.img?'<img loading="lazy" alt="'+esc(f.name)+'" src="'+esc(f.img)+'">':'<span class="slotname">'+esc(f.name)+'</span>')+'<span>'+fmt(f.val)+'</span>':'+')+'</button>'}).join('');
 }
 function renderTradeListings(){
  const q=$('tq').value.trim().toLowerCase();
  const found=tradeListings.filter(x=>[x.discord,x.note,...(x.offer||[]).map(y=>y.name),...(x.want||[]).map(y=>y.name)].join(' ').toLowerCase().includes(q)).sort((a,b)=>(b.created||0)-(a.created||0));
- $('tradeListings').innerHTML=found.length?found.map(x=>'<div class="panel" style="margin-top:12px;margin-bottom:0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:start"><b>'+esc(x.discord||'Unknown Discord username')+'</b><button class="btn g" data-report-listing="'+esc(x.id)+'" style="padding:6px 9px;font-size:12px">Report</button></div>'+(x.note?'<p style="margin:6px 0;color:var(--mu)">'+esc(x.note)+'</p>':'')+'<div class="row"><b>You offer</b><span>'+fmt((x.offer||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.offer||[]).length?x.offer.map(y=>'<span class="chip" style="display:inline-block;margin:4px 4px 0 0">'+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><div class="row"><b>You want</b><span>'+fmt((x.want||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.want||[]).length?x.want.map(y=>'<span class="chip" style="display:inline-block;margin:4px 4px 0 0">'+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><p style="font-size:12px;color:var(--mu);margin:10px 0 0">Contact them using the Discord username above. Listings are public and user-submitted.</p></div>').join(''):'<div class="empty">No matching listings yet.</div>';
+ $('tradeListings').innerHTML=found.length?found.map(x=>'<div class="panel" style="margin-top:12px;margin-bottom:0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:start"><b>'+esc(x.discord||'Unknown Discord username')+'</b><button class="btn g" data-report-listing="'+esc(x.id)+'" style="padding:6px 9px;font-size:12px">Report</button></div>'+(x.note?'<p style="margin:6px 0;color:var(--mu)">'+esc(x.note)+'</p>':'')+'<div class="row"><b>You offer</b><span>'+fmt((x.offer||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.offer||[]).length?x.offer.map(y=>'<span class="chip" style="display:inline-flex;align-items:center;gap:6px;margin:4px 4px 0 0">'+(y.img?'<img loading="lazy" alt="" src="'+esc(y.img)+'" style="width:28px;height:28px;object-fit:contain">':'')+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><div class="row"><b>You want</b><span>'+fmt((x.want||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.want||[]).length?x.want.map(y=>'<span class="chip" style="display:inline-block;margin:4px 4px 0 0">'+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><p style="font-size:12px;color:var(--mu);margin:10px 0 0">Contact them using the Discord username above. Listings are public and user-submitted.</p></div>').join(''):'<div class="empty">No matching listings yet.</div>';
 }
 $('tq').oninput=renderTradeListings;
 $('offerSlots').onclick=$('wantSlots').onclick=e=>{const b=e.target.closest('[data-list-side]');if(!b)return;listingPick={side:b.dataset.listSide,index:+b.dataset.listIndex};$('mq').value='';ml();$('m').classList.add('on')};
@@ -231,7 +231,7 @@ $('publishTrade').onclick=async()=>{
  const discord=$('discordName').value.trim(),note=$('tradeNote').value.trim();
  if(!discord)return $('tradeMessage').textContent='Enter the Discord username you want to share.';
  if(discord.length<2||/[<>]/.test(discord))return $('tradeMessage').textContent='Enter a valid-looking Discord username.';
- const make=arr=>arr.filter(Boolean).map(x=>{const f=items.find(v=>String(v.id)===String(x.id));return f?{id:f.id,name:f.name,val:f.val,q:x.q||1}:null}).filter(Boolean);
+ const make=arr=>arr.filter(Boolean).map(x=>{const f=items.find(v=>String(v.id)===String(x.id));return f?{id:f.id,name:f.name,val:f.val,img:f.img||'',q:x.q||1}:null}).filter(Boolean);
  const offer=make(listingOffer),want=make(listingWant);
  if(!offer.length||!want.length)return $('tradeMessage').textContent='Add at least one item to both “You offer” and “You want”.';
  if(!online)return $('tradeMessage').textContent='Publishing requires the online database connection.';
