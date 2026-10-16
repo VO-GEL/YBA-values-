@@ -510,7 +510,15 @@ function estimateSkinValue(name,tier,index,total){
  if(n.includes('manga')||n.includes('ova')||n.includes('deimos'))modifier-=0.03;
  if(n.includes('requiem')||n.includes('over heaven'))modifier+=0.08;
  modifier=Math.max(-0.18,Math.min(0.32,modifier));
- return Math.max(0.7,Math.round(base*(1+modifier)*10)/10);
+ let value=base*(1+modifier);
+ // Keep Tusk Act variants distinct instead of treating them as equivalent skins.
+ if(/tusk act 1/.test(n))value=Math.min(value,4);
+ else if(/tusk act 2/.test(n))value=Math.min(value,8);
+ else if(/tusk act 3/.test(n))value=Math.min(value,18);
+ else if(/tusk act 4/.test(n))value=Math.max(value,Math.min(120,value*1.25));
+ // Stone Free is a base stand name, not a premium keyword.
+ if(/stone free/.test(n)&&!/(skin|limited|retro|ghost|sumo|vexus)/.test(n))value=Math.min(value,35);
+ return Math.max(0.7,Math.round(value*10)/10);
 }
 function estimatedRarity(tier,name){
  const n=name.toLowerCase();
