@@ -98,7 +98,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 <div class="w"><label>Image</label><input id="img" type="file" accept="image/*"></div>
 </div>
 <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" id="save">Save</button><button class="btn g" id="cancel" hidden>Cancel edit</button></div><div id="sync"></div></div>
-<div class="panel"><h2>All items</h2><div id="list"></div><button class="btn g" id="lockb" style="margin-top:12px">Lock panel</button></div>
+<div class="panel"><h2>All items</h2><input id="ownerSearch" type="search" placeholder="Search a stand, skin, or item to edit…" aria-label="Search owner panel items" style="margin-bottom:10px"><div id="list"></div><button class="btn g" id="lockb" style="margin-top:12px">Lock panel</button></div>
 </div>
 </section>
 <section id="t" hidden>
@@ -164,7 +164,8 @@ $('grid').innerHTML=l.length?l.map(f=>`<div class="card"><span class="badge">${e
 <div class="row"><span>Demand</span><b>${f.dem}/10</b></div><div class="row"><span>Trend</span><b>${arr[f.trd]}</b></div><div class="row"><span>Category</span><b>${esc(f.cat)}</b></div></div>`).join(''):'<div class="empty" style="grid-column:1/-1">Nothing found.</div>';hydrateImages()}
 $('q').oninput=grid;
 $('chips').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;grid()}};
-function list(){$('list').innerHTML=items.length?items.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):'<div class="empty">Add your first item above.</div>';hydrateImages()}
+function list(){const q=($('ownerSearch')?.value||'').trim().toLowerCase();const filtered=items.filter(f=>String(f.name||'').toLowerCase().includes(q)||String(f.cat||'').toLowerCase().includes(q));$('list').innerHTML=filtered.length?filtered.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):('<div class="empty">'+(items.length?'No matching values found.':'Add your first item above.')+'</div>');hydrateImages()}
+$('ownerSearch').oninput=list;
 $('list').onclick=async e=>{const d=e.target.dataset;if(d.d){if(!confirm('Delete this item?'))return;items=items.filter(f=>f.id!=d.d);cleanTrade();all();await del(d.d)}
 if(d.e){const f=items.find(x=>x.id==d.e);editId=f.id;img='';$('n').value=f.name;$('val').value=fmt(f.val);$('cat').value=f.cat;$('rar').value=f.rar;$('dem').value=f.dem;$('trd').value=f.trd;$('sta').value=f.sta;$('ft').textContent='Edit item';$('cancel').hidden=false;scrollTo(0,0)}};
 function reset(){editId=null;img='';['n','val'].forEach(i=>$(i).value='');$('img').value='';$('dem').value=5;$('ft').textContent='Add an item';$('cancel').hidden=true}
