@@ -500,16 +500,17 @@ const STAND_SEED=[
  ['Star Platinum','Legendary',18,8],['The World','Legendary',20,9],['Crazy Diamond','Rare',8,6],['Gold Experience','Rare',8,6],['Gold Experience Requiem','Epic',16,8],['King Crimson','Epic',15,7],['King Crimson Requiem','Legendary',22,9],['Killer Queen','Rare',8,6],['Killer Queen: Bites the Dust','Epic',14,7],['Silver Chariot','Uncommon',4,5],['Silver Chariot Requiem','Epic',13,7],['The Hand','Rare',7,6],['Magician’s Red','Uncommon',4,5],['Hermit Purple','Common',1.4,4],['Aerosmith','Common',1.4,4],['Sex Pistols','Rare',7,6],['Anubis','Rare',8,6],['Whitesnake','Rare',8,6],['C-Moon','Epic',14,7],['Made in Heaven','Legendary',20,8],['Tusk Act 4','Legendary',22,8],['D4C','Rare',8,6],['D4C: Love Train','Epic',15,7],['The World Over Heaven','Mythic',28,9],['Star Platinum: The World','Legendary',20,8],['Shadow the World','Epic',15,7],['Scary Monsters','Rare',7,6],['Purple Haze','Uncommon',4,5],['Hierophant Green','Uncommon',4,5],['Sticky Fingers','Uncommon',4,5],['Beach Boy','Common',1.4,4],['Mr. President','Common',1.4,4],['Cream','Rare',7,6],['Diver Down','Rare',8,6],['Stone Free','Rare',8,6],['Weather Report','Epic',13,7],['Soft & Wet','Epic',13,7],['Soft & Wet: Go Beyond','Legendary',21,8],['Red Hot Chili Pepper','Uncommon',4,5],['Red Hot Chili Pepper Alternate Universe','Epic',12,7],['The World Alternate Universe','Rare',8,6],['Tusk Act 1','Uncommon',3,5],['Tusk Act 2','Uncommon',4,5],['Tusk Act 3','Rare',7,6],['Crazy Diamond Requiem','Mythic',30,9]
 ];
 function estimateSkinValue(name,tier,index,total){
- const ranges={U:[18,42],S:[650,1785],'A+':[180,620],'A-':[45,179],B:[12,44],F:[1,11],G:[5,16]};
- const [lo,hi]=ranges[tier]||[1,10];
- const pos=total<=1?0:(total-1-index)/(total-1);
- let value=lo+(hi-lo)*pos;
+ const base={U:28,S:900,'A+':320,'A-':100,B:30,F:4,G:12}[tier]||4;
  const n=name.toLowerCase();
- const premium=['requiem','over heaven','limited','retro','cursed','astral','vexus','sumo','jack-o','ghost','angel','golden','neon','platinum','diamond','crimson','frostbite','sapphire','ruby','zenitsu','goku','killua','sukuna'];
- const ordinary=['ova','manga','shadow','deimos','grinch','candy corn','action figure','actually','nerf gun','glock'];
- if(premium.some(w=>n.includes(w)))value*=1.12;
- if(ordinary.some(w=>n.includes(w)))value*=0.92;
- return Math.max(0.7,Math.round(value*10)/10);
+ const premium=['requiem','over heaven','limited','retro','cursed','astral','vexus','sumo','jack-o','ghost','angel','golden','neon','platinum','diamond','crimson','frostbite','sapphire','ruby','zamasu','zenitsu','goku','killua','sukuna','divine','serenity'];
+ const ordinary=['actually','nerf gun','glock','cornsnake','mustard'];
+ let modifier=0;
+ for(const word of premium)if(n.includes(word))modifier+=0.035;
+ for(const word of ordinary)if(n.includes(word))modifier-=0.08;
+ if(n.includes('manga')||n.includes('ova')||n.includes('deimos'))modifier-=0.03;
+ if(n.includes('requiem')||n.includes('over heaven'))modifier+=0.08;
+ modifier=Math.max(-0.18,Math.min(0.32,modifier));
+ return Math.max(0.7,Math.round(base*(1+modifier)*10)/10);
 }
 function estimatedRarity(tier,name){
  const n=name.toLowerCase();
