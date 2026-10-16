@@ -195,7 +195,11 @@ async function lookupSkinImage(f){
  }catch(e){
   // Retry transient API/network failures instead of permanently caching a failed lookup.
   if((imageAttempts.get(id)||0)<3)setTimeout(()=>{hydrateImages()},1800);
- }finally{imagePending.delete(id)}
+ }finally{
+  imagePending.delete(id);
+  // Keep draining the queue so large imports are not limited to the first four images.
+  setTimeout(()=>{hydrateImages()},250);
+ }
 }
 async function hydrateImages(){
  const ids=new Set();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage)ids.add(String(el.dataset.itemImage))});
@@ -204,7 +208,7 @@ async function hydrateImages(){
   const f=items.find(x=>String(x.id)===id);
   if(f&&!f.img&&!imagePending.has(id)&&!imageCache.has(id)&&(imageAttempts.get(id)||0)<3){
    lookupSkinImage(f);
-   if(++started>=4)break;
+   if(++started>=3)break;
   }
  }
 }
