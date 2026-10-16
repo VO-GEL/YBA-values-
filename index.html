@@ -90,7 +90,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 <div class="w"><label>Name</label><input id="n"></div>
 <div><label>Value (e.g. 1.5M, 600K)</label><input id="val"></div>
 <div><label>Category</label><select id="cat"><option>Stand</option><option>Skin</option><option>Item</option><option>Shiny</option><option>Other</option></select></div>
-<div><label>Rarity</label><select id="rar"><option>Common</option><option>Uncommon</option><option>Rare</option><option>Legendary</option><option selected>Mythic</option></select></div>
+<div><label>Rarity</label><select id="rar"><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option selected>Mythic</option><option>Limited</option></select></div>
 <div><label>Demand (1–10)</label><input id="dem" type="number" min="1" max="10" value="5"></div>
 <div><label>Trend</label><select id="trd"><option>Rising</option><option selected>Stable</option><option>Falling</option></select></div>
 <div><label>Status</label><select id="sta"><option>Overpaid</option><option selected>Fair</option><option>Underpaid</option></select></div>
@@ -179,7 +179,7 @@ $('clr').onclick=()=>{trade={me:[null,null,null,null],them:[null,null,null,null]
 function all(){grid();list();calc()}
 /* ===== STARTER SKINS IMPORT ===== */
 const SCALE=1; // 1 = values in Rokas. Change this if your own values use a different scale
-const TIER={U:[207,'Common',4],S:[2107,'Mythic',8],'A+':[857,'Legendary',7],'A-':[686,'Rare',6],B:[264,'Uncommon',5],F:[17,'Common',3],G:[700,'Rare',6]};
+const TIER={U:[28,'Epic',7],S:[1250,'Mythic',9],'A+':[360,'Legendary',8],'A-':[95,'Epic',7],B:[28,'Rare',6],F:[4,'Common',4],G:[12,'Uncommon',5]};
 const SEED=`Crazy Idol Requiem|CDR|U|361
 Chopper|CDR|U
 The Bunny Devil (bunny)|SCR|U
@@ -496,15 +496,44 @@ Mr Joestar|MP|F
 Nexus King Crimson|KC / KCR|G|1000
 Cornsnake|WS|G|929
 Mustard Platinum|SP|G|14`;
+const STAND_SEED=[
+ ['Star Platinum','Legendary',18,8],['The World','Legendary',20,9],['Crazy Diamond','Rare',8,6],['Gold Experience','Rare',8,6],['Gold Experience Requiem','Epic',16,8],['King Crimson','Epic',15,7],['King Crimson Requiem','Legendary',22,9],['Killer Queen','Rare',8,6],['Killer Queen: Bites the Dust','Epic',14,7],['Silver Chariot','Uncommon',4,5],['Silver Chariot Requiem','Epic',13,7],['The Hand','Rare',7,6],['Magician’s Red','Uncommon',4,5],['Hermit Purple','Common',1.4,4],['Aerosmith','Common',1.4,4],['Sex Pistols','Rare',7,6],['Anubis','Rare',8,6],['Whitesnake','Rare',8,6],['C-Moon','Epic',14,7],['Made in Heaven','Legendary',20,8],['Tusk Act 4','Legendary',22,8],['D4C','Rare',8,6],['D4C: Love Train','Epic',15,7],['The World Over Heaven','Mythic',28,9],['Star Platinum: The World','Legendary',20,8],['Shadow the World','Epic',15,7],['Scary Monsters','Rare',7,6],['Purple Haze','Uncommon',4,5],['Hierophant Green','Uncommon',4,5],['Sticky Fingers','Uncommon',4,5],['Beach Boy','Common',1.4,4],['Mr. President','Common',1.4,4],['Cream','Rare',7,6],['Diver Down','Rare',8,6],['Stone Free','Rare',8,6],['Weather Report','Epic',13,7],['Soft & Wet','Epic',13,7],['Soft & Wet: Go Beyond','Legendary',21,8],['Red Hot Chili Pepper','Uncommon',4,5],['Red Hot Chili Pepper Alternate Universe','Epic',12,7],['The World Alternate Universe','Rare',8,6],['Tusk Act 1','Uncommon',3,5],['Tusk Act 2','Uncommon',4,5],['Tusk Act 3','Rare',7,6],['Crazy Diamond Requiem','Mythic',30,9]
+];
+function estimateSkinValue(name,tier,index,total){
+ const ranges={U:[18,42],S:[650,1785],'A+':[180,620],'A-':[45,179],B:[12,44],F:[1,11],G:[5,16]};
+ const [lo,hi]=ranges[tier]||[1,10];
+ const pos=total<=1?0:(total-1-index)/(total-1);
+ let value=lo+(hi-lo)*pos;
+ const n=name.toLowerCase();
+ const premium=['requiem','over heaven','limited','retro','cursed','astral','vexus','sumo','jack-o','ghost','angel','golden','neon','platinum','diamond','crimson','frostbite','sapphire','ruby','zenitsu','goku','killua','sukuna'];
+ const ordinary=['ova','manga','shadow','deimos','grinch','candy corn','action figure','actually','nerf gun','glock'];
+ if(premium.some(w=>n.includes(w)))value*=1.12;
+ if(ordinary.some(w=>n.includes(w)))value*=0.92;
+ return Math.max(0.7,Math.round(value*10)/10);
+}
+function estimatedRarity(tier,name){
+ const n=name.toLowerCase();
+ if(tier==='S'&&/(retro|vexus|jack-o|over heaven|requiem|ghost world)/.test(n))return 'Mythic';
+ return ({U:'Epic',S:'Mythic','A+':'Legendary','A-':'Epic',B:'Rare',F:'Common',G:'Uncommon'})[tier]||'Rare';
+}
+function estimatedDemand(tier,name){
+ let d=({U:7,S:8,'A+':7,'A-':6,B:5,F:3,G:4})[tier]||4;
+ if(/over heaven|requiem|limited|retro|vexus|jack-o|ghost|platinum|golden|neon|cursed|angel/.test(name.toLowerCase()))d++;
+ if(/manga|ova|deimos|actually|glock|nerf gun|cornsnake|mustard/.test(name.toLowerCase()))d--;
+ return Math.max(1,Math.min(10,d));
+}
 async function importSkins(){
  if(!unlocked)return;
- if(!confirm('Add 316 skins? Your own items stay. Skins imported before will be reset to the starter values.'))return;
- const rows=SEED.trim().split('\n'),obj={};
- rows.forEach((l,i)=>{const[n,s,t,v]=l.split('|'),T=TIER[t],id=1000+i;
-  obj[id]={id,name:n+' · '+s,val:Math.round((+v||T[0])*SCALE*10)/10,cat:'Skin',rar:T[1],dem:T[2],trd:'Stable',sta:'Fair',img:''}});
+ if(!confirm('Rebuild the skin list with recalculated values, rarity, and demand, and add the base stands? Imported starter entries will be replaced; other owner-added items stay.'))return;
+ const rows=SEED.trim().split('\n'),obj={},standObj={};
+ rows.forEach((l,i)=>{const[n,s,t]=l.split('|'),id=1000+i;const name=s&&s!=='(unlisted)'?n+' · '+s:n;
+  obj[id]={id,name,val:estimateSkinValue(n,t,i,rows.length),cat:'Skin',rar:estimatedRarity(t,n),dem:estimatedDemand(t,n),trd:'Stable',sta:'Fair',img:''};
+ });
+ STAND_SEED.forEach(([name,rar,val,dem],i)=>{const id=2000+i;standObj[id]={id,name,val:Math.round(val*10)/10,cat:'Stand',rar,dem,trd:'Stable',sta:'Fair',img:''}});
+ const fresh={...obj,...standObj};
  try{
-  if(online){const r=await fetch(base+'/items.json',{method:'PATCH',body:JSON.stringify(obj)});if(!r.ok)throw 0}
-  items=items.filter(f=>!(f.id>=1000&&f.id<1400)).concat(Object.values(obj));cache();all();say('Imported '+rows.length+' skins.');
+  if(online){const r=await fetch(base+'/items.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(fresh)});if(!r.ok)throw 0}
+  items=items.filter(f=>!(f.id>=1000&&f.id<1400)&&!(f.id>=2000&&f.id<2100)).concat(Object.values(fresh));cache();all();say('Rebuilt '+rows.length+' skin estimates and added '+STAND_SEED.length+' base stands. Images left blank unless a verified image is added.');
  }catch(e){alert('Import failed. Check your database address and rules.')}
 }
 const ib=document.createElement('button');ib.className='btn g';ib.style.marginTop='12px';ib.textContent='Import starter skins';ib.onclick=importSkins;$('lockb').parentNode.appendChild(ib);
