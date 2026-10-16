@@ -75,6 +75,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 <hr>
 <button class="mi" data-go="v"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM7 6H5v14h14V6h-2M9 12h6M9 16h6"/></svg></span><span><b>Value list</b><small>Check current values</small></span></button>
 <button class="mi" data-go="c"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/></svg></span><span><b>Calculator</b><small>Calculate your trade</small></span></button>
+<button class="mi" data-go="t"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h16"/><circle cx="18" cy="12" r="2"/></svg></span><span><b>Trade listings</b><small>Post trades and find other players</small></span></button>
 <button class="mi" data-go="o"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span><span><b>Owner panel</b><small>Add and edit values (locked)</small></span></button>
 </div>
 
@@ -99,6 +100,17 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" id="save">Save</button><button class="btn g" id="cancel" hidden>Cancel edit</button></div><div id="sync"></div></div>
 <div class="panel"><h2>All items</h2><div id="list"></div><button class="btn g" id="lockb" style="margin-top:12px">Lock panel</button></div>
 </div>
+</section>
+<section id="t" hidden>
+<div class="panel"><h2>Find a trade</h2><p style="margin:0 0 10px;color:var(--mu);font-size:13px">Search public trade listings. Discord usernames are user-entered and are not verified by Discord.</p><input id="tq" type="search" placeholder="Search item, skin, stand, or Discord username"><div id="tradeListings"></div></div>
+<div class="panel"><h2>Post your trade</h2><p style="margin:0 0 12px;color:var(--mu);font-size:13px">Only post a Discord username you’re comfortable sharing publicly. Never include passwords, personal details, or private account information.</p>
+<div class="f">
+<div class="w"><label>Discord username</label><input id="discordName" maxlength="80" placeholder="e.g. username or username#0000"></div>
+<div class="w"><label>Short note (optional)</label><input id="tradeNote" maxlength="160" placeholder="e.g. Looking for fair offers"></div>
+<div class="w"><label>You offer (tap a box to add an item)</label><div class="slots" id="offerSlots"></div></div>
+<div class="w"><label>You want (tap a box to add an item)</label><div class="slots" id="wantSlots"></div></div>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="publishTrade">Publish listing</button><button class="btn g" id="clearTradeForm">Clear form</button></div><div id="tradeMessage" style="font-size:13px;color:var(--mu);margin-top:8px"></div></div>
 </section>
 </main>
 <div class="modal" id="m"><div class="sheet"><input id="mq" placeholder="Search…" style="margin-bottom:8px"><div id="ml"></div></div></div>
@@ -132,8 +144,8 @@ async function lookupSkinImage(){return '';}
 async function hydrateImages(){}
 window.addEventListener('scroll',hydrateImages,{passive:true});
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
-const titles={v:'YBA Values',c:'Calculator',o:'Owner panel'};
-function go(t){['v','c','o'].forEach(s=>$(s).hidden=s!==t);$('ttl').textContent=titles[t];menu(false);scrollTo(0,0);if(t==='o')own();if(t==='v')load()}
+const titles={v:'YBA Values',c:'Calculator',t:'Trade listings',o:'Owner panel'};
+function go(t){['v','c','t','o'].forEach(s=>$(s).hidden=s!==t);$('ttl').textContent=titles[t];menu(false);scrollTo(0,0);if(t==='o')own();if(t==='v')load()}
 function menu(on){$('menu').classList.toggle('on',on);$('mi').innerHTML=on?'<path d="M6 6l12 12M18 6L6 18"/>':'<path d="M4 7h16M4 12h16M4 17h16"/>'}
 $('mb').onclick=()=>menu(!$('menu').classList.contains('on'));
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
@@ -176,6 +188,52 @@ $('mq').oninput=ml;
 $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;trade[pick.s][pick.i]={id:+r.dataset.id,q:1};$('m').classList.remove('on');calc()};
 $('m').onclick=e=>{if(e.target.id==='m')$('m').classList.remove('on')};
 $('clr').onclick=()=>{trade={me:[null,null,null,null],them:[null,null,null,null]};calc()};
+
+// Public trade listings stored separately from the value catalogue.
+const TRADE_DB=base+'/tradeListings';
+let tradeListings=[],listingOffer=[null,null,null,null],listingWant=[null,null,null,null],listingPick=null;
+const tradeFmtItem=x=>{const f=x&&items.find(v=>String(v.id)===String(x.id));return f?{id:f.id,name:f.name,val:f.val,q:x.q||1}:null};
+async function loadTradeListings(){
+ const host=$('tradeListings');host.innerHTML='<div class="empty">Loading listings…</div>';
+ if(!online){host.innerHTML='<div class="empty">Online trade listings need the public database connection.</div>';return}
+ try{const r=await fetch(TRADE_DB+'.json');if(!r.ok)throw 0;const d=await r.json();tradeListings=d?Object.entries(d).map(([id,x])=>({...x,id})).filter(x=>x.active!==false):[];renderTradeListings()}
+ catch(e){host.innerHTML='<div class="empty">Could not load listings right now.</div>'}
+}
+function listingSlots(which){
+ const arr=which==='offer'?listingOffer:listingWant;
+ $(''+(which==='offer'?'offerSlots':'wantSlots')).innerHTML=arr.map((x,i)=>{const f=x&&items.find(v=>String(v.id)===String(x.id));return '<button type="button" class="slot" data-list-side="'+which+'" data-list-index="'+i+'" aria-label="Choose '+(which==='offer'?'offered':'wanted')+' item">'+(f?'<em>'+(x.q||1)+'</em>'+esc(f.name)+'<span>'+fmt(f.val)+'</span>':'+')+'</button>'}).join('');
+}
+function renderTradeListings(){
+ const q=$('tq').value.trim().toLowerCase();
+ const found=tradeListings.filter(x=>[x.discord,x.note,...(x.offer||[]).map(y=>y.name),...(x.want||[]).map(y=>y.name)].join(' ').toLowerCase().includes(q)).sort((a,b)=>(b.created||0)-(a.created||0));
+ $('tradeListings').innerHTML=found.length?found.map(x=>'<div class="panel" style="margin-top:12px;margin-bottom:0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:start"><b>'+esc(x.discord||'Unknown Discord username')+'</b><button class="btn g" data-report-listing="'+esc(x.id)+'" style="padding:6px 9px;font-size:12px">Report</button></div>'+(x.note?'<p style="margin:6px 0;color:var(--mu)">'+esc(x.note)+'</p>':'')+'<div class="row"><b>You offer</b><span>'+fmt((x.offer||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.offer||[]).length?x.offer.map(y=>'<span class="chip" style="display:inline-block;margin:4px 4px 0 0">'+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><div class="row"><b>You want</b><span>'+fmt((x.want||[]).reduce((a,y)=>a+(+y.val||0)*(+y.q||1),0))+'</span></div><div>'+((x.want||[]).length?x.want.map(y=>'<span class="chip" style="display:inline-block;margin:4px 4px 0 0">'+esc(y.name)+(y.q>1?' ×'+y.q:'')+'</span>').join(''):'<small>Nothing listed</small>')+'</div><p style="font-size:12px;color:var(--mu);margin:10px 0 0">Contact them using the Discord username above. Listings are public and user-submitted.</p></div>').join(''):'<div class="empty">No matching listings yet.</div>';
+}
+$('tq').oninput=renderTradeListings;
+$('offerSlots').onclick=$('wantSlots').onclick=e=>{const b=e.target.closest('[data-list-side]');if(!b)return;listingPick={side:b.dataset.listSide,index:+b.dataset.listIndex};$('mq').value='';ml();$('m').classList.add('on')};
+$('ml').addEventListener('click',e=>{if(!listingPick||!$('t').hidden===false)return;});
+$('publishTrade').onclick=async()=>{
+ const discord=$('discordName').value.trim(),note=$('tradeNote').value.trim();
+ if(!discord)return $('tradeMessage').textContent='Enter the Discord username you want to share.';
+ if(discord.length<2||/[<>]/.test(discord))return $('tradeMessage').textContent='Enter a valid-looking Discord username.';
+ const make=arr=>arr.filter(Boolean).map(x=>{const f=items.find(v=>String(v.id)===String(x.id));return f?{id:f.id,name:f.name,val:f.val,q:x.q||1}:null}).filter(Boolean);
+ const offer=make(listingOffer),want=make(listingWant);
+ if(!offer.length||!want.length)return $('tradeMessage').textContent='Add at least one item to both “You offer” and “You want”.';
+ if(!online)return $('tradeMessage').textContent='Publishing requires the online database connection.';
+ const btn=$('publishTrade');btn.disabled=true;$('tradeMessage').textContent='Publishing…';
+ const id='listing_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+ const payload={discord,note,offer,want,created:Date.now(),active:true};
+ try{const r=await fetch(TRADE_DB+'/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw 0;payload.id=id;tradeListings.unshift(payload);renderTradeListings();$('tradeMessage').textContent='Your listing is published.';$('discordName').value='';$('tradeNote').value='';listingOffer=[null,null,null,null];listingWant=[null,null,null,null];listingSlots('offer');listingSlots('want')}
+ catch(e){$('tradeMessage').textContent='Could not publish. The database may not allow public listing writes yet.'}
+ finally{btn.disabled=false}
+};
+$('clearTradeForm').onclick=()=>{$('discordName').value='';$('tradeNote').value='';listingOffer=[null,null,null,null];listingWant=[null,null,null,null];$('tradeMessage').textContent='';listingSlots('offer');listingSlots('want')};
+$('tradeListings').onclick=async e=>{const b=e.target.closest('[data-report-listing]');if(!b)return;const id=b.dataset.reportListing;if(!confirm('Report this user-submitted listing to the site owner?'))return;if(!online)return;try{await fetch(base+'/tradeReports/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingId:id,created:Date.now(),reason:'User report'})});alert('Report submitted.')}catch(err){alert('Could not submit report right now.')}};
+const oldMl=$('ml').onclick;
+$('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;if(listingPick&&!$('t').hidden){const id=+r.dataset.id;if(!items.some(f=>f.id===id))return;const arr=listingPick.side==='offer'?listingOffer:listingWant;const current=arr[listingPick.index];if(current&&current.id===id)current.q=Math.min(9,(current.q||1)+1);else arr[listingPick.index]={id,q:1};listingPick=null;$('m').classList.remove('on');listingSlots('offer');listingSlots('want');return}if(pick){trade[pick.s][pick.i]={id:+r.dataset.id,q:1};$('m').classList.remove('on');calc()}};
+const oldGo=go;
+go=function(t){oldGo(t);if(t==='t'){listingSlots('offer');listingSlots('want');loadTradeListings()}};
+function all(){grid();list();calc();if(!$('t').hidden){listingSlots('offer');listingSlots('want')}}
+
 function all(){grid();list();calc()}
 /* ===== STARTER SKINS IMPORT ===== */
 const SCALE=1; // 1 = values in Rokas. Change this if your own values use a different scale
