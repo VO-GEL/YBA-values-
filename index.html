@@ -132,7 +132,30 @@ if(!items.length&&!online)items=DEFAULTS;
 const $=i=>document.getElementById(i);
 const cache=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
 const say=t=>$('sync').textContent=t;
-async function load(){if(!online){if(!items.length)items=DEFAULTS.slice();all();return}try{const r=await fetch(base+'/items.json');if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();if(d)items=Object.values(d);else if(!items.length)items=DEFAULTS.slice();cache();cleanTrade();all();say('Connected to the value database.')}catch(e){if(!items.length)items=DEFAULTS.slice();all();say('Database unavailable. Showing saved items; online changes may not sync.')}}
+async function load(){
+ const inDeleteRange=id=>{const n=Number(id);return Number.isInteger(n)&&n>=1&&n<=316};
+ // Remove only records numbered 1–316; higher-numbered skin/stand records are retained.
+ items=items.filter(f=>!inDeleteRange(f.id));cache();
+ if(!online){if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));all();return}
+ try{
+  const r=await fetch(base+'/items.json');if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(d&&typeof d==='object'){
+   const doomed=Object.keys(d).filter(inDeleteRange);
+   items=Object.entries(d).filter(([key,f])=>!inDeleteRange(key)&&!inDeleteRange(f&&f.id)).map(([,f])=>f);
+   cache();cleanTrade();all();
+   let removed=0;
+   for(let i=0;i<doomed.length;i+=20){
+    const batch=doomed.slice(i,i+20);
+    const results=await Promise.all(batch.map(async id=>{
+     try{const x=await fetch(base+'/items/'+encodeURIComponent(id)+'.json',{method:'DELETE'});return x.ok}catch(e){return false}
+    }));
+    removed+=results.filter(Boolean).length;
+   }
+   say(doomed.length===removed?'Removed value records 1–316. Remaining items preserved.':'Hidden value records 1–316 locally; database deletion partially failed ('+removed+'/'+doomed.length+').');
+  }else{if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));cache();cleanTrade();all();say('Connected. No database value records found.')}
+ }catch(e){if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));all();say('Database unavailable. Records 1–316 are hidden locally; online deletion could not be verified.')}
+}
 async function put(f){cache();if(!online)return;try{const r=await fetch(base+'/items/'+f.id+'.json',{method:'PUT',body:JSON.stringify(f)});if(!r.ok)throw 0;say('Saved for everyone.')}catch(e){alert('Could not save online. Check your database address and rules.')}}
 async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/items/'+id+'.json',{method:'DELETE'});if(!r.ok)throw 0}catch(e){alert('Could not delete online.')}}
 const fmt=n=>n>=1e9?+(n/1e9).toFixed(2)+'B':n>=1e6?+(n/1e6).toFixed(2)+'M':n>=1e3?+(n/1e3).toFixed(2)+'K':String(n);
