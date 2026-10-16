@@ -138,10 +138,25 @@ async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/
 const fmt=n=>n>=1e9?+(n/1e9).toFixed(2)+'B':n>=1e6?+(n/1e6).toFixed(2)+'M':n>=1e3?+(n/1e3).toFixed(2)+'K':String(n);
 const parse=s=>{const m=String(s).trim().toUpperCase().match(/^([\d.,]+)\s*([KMB])?$/);if(!m)return NaN;return parseFloat(m[1].replace(/,/g,''))*({K:1e3,M:1e6,B:1e9}[m[2]]||1)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const imageCache=new Map();
-const pic=f=>`<div class="ph" aria-label="No image">${esc((f.name||'?')[0])}</div>`;
-async function lookupSkinImage(){return '';}
-async function hydrateImages(){}
+const imageCache=new Map(),imagePending=new Set();
+const pic=f=>f&&f.img?'<img loading="lazy" alt="'+esc(f.name||'YBA item')+'" src="'+esc(f.img)+'">':'<div class="ph" aria-label="Image unavailable">'+esc((f.name||'?')[0])+'</div>';
+async function lookupSkinImage(f){
+ if(!f||f.img||imageCache.has(String(f.id))||imagePending.has(String(f.id)))return;
+ const id=String(f.id);imagePending.add(id);
+ try{
+  const name=String(f.name||'').split(' · ')[0].trim();
+  const url='https://yba.fandom.com/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name+' YBA')+'&gsrnamespace=0&gsrlimit=5&prop=pageimages&piprop=thumbnail&pithumbsize=256&format=json&origin=*';
+  const response=await fetch(url);if(!response.ok)throw Error('lookup failed');
+  const data=await response.json(),pages=Object.values((data.query&&data.query.pages)||{});
+  const key=name.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const found=pages.find(p=>p.thumbnail&&p.thumbnail.source&&String(p.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===key);
+  if(found){f.img=found.thumbnail.source;imageCache.set(id,f.img);cache();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage===id){if(el.tagName==='IMG')el.src=f.img;else{const im=document.createElement('img');im.loading='lazy';im.alt=f.name||'YBA item';im.src=f.img;el.replaceChildren(im)}}})}
+ }catch(e){imageCache.set(id,'')}finally{imagePending.delete(id)}
+}
+async function hydrateImages(){
+ const ids=new Set();document.querySelectorAll('[data-item-image]').forEach(el=>{if(el.dataset.itemImage)ids.add(el.dataset.itemImage)});
+ for(const id of ids){const f=items.find(x=>String(x.id)===id);if(f&&!f.img)lookupSkinImage(f)}
+}
 window.addEventListener('scroll',hydrateImages,{passive:true});
 const stc={Overpaid:'var(--warn)',Fair:'var(--ok)',Underpaid:'var(--bad)'},arr={Rising:'▲ Rising',Stable:'● Stable',Falling:'▼ Falling'};
 const titles={v:'YBA Values',c:'Calculator',t:'Trade listings',o:'Owner panel'};
@@ -158,16 +173,16 @@ function grid(){const q=$('q').value.toLowerCase();
 const cats=['All',...new Set(items.map(f=>f.cat))];
 $('chips').innerHTML=cats.map(c=>`<button class="chip ${c===cat?'on':''}" data-c="${c}">${c}</button>`).join('');
 const l=items.filter(f=>f.name.toLowerCase().includes(q)&&(cat==='All'||f.cat===cat));
-$('grid').innerHTML=l.length?l.map(f=>`<div class="card"><span class="badge">${esc(f.rar)}</span><div class="img">${pic(f)}</div><h3>${esc(f.name)}</h3>
+$('grid').innerHTML=l.length?l.map(f=>`<div class="card"><span class="badge">${esc(f.rar)}</span><div class="img" data-item-image="${esc(f.id)}">${pic(f)}</div><h3>${esc(f.name)}</h3>
 <div><span class="st" style="color:${stc[f.sta]}">${f.sta}</span><span class="big">${fmt(f.val)}</span></div>
 <div class="bar">${Array.from({length:10},(_,i)=>`<i class="${i<f.dem?'f':''}"></i>`).join('')}</div>
 <div class="row"><span>Demand</span><b>${f.dem}/10</b></div><div class="row"><span>Trend</span><b>${arr[f.trd]}</b></div><div class="row"><span>Category</span><b>${esc(f.cat)}</b></div></div>`).join(''):'<div class="empty" style="grid-column:1/-1">Nothing found.</div>';hydrateImages()}
 $('q').oninput=grid;
 $('chips').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;grid()}};
-function list(){const q=($('ownerSearch')?.value||'').trim().toLowerCase();const filtered=items.filter(f=>String(f.name||'').toLowerCase().includes(q)||String(f.cat||'').toLowerCase().includes(q));$('list').innerHTML=filtered.length?filtered.map(f=>`<div class="li">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):('<div class="empty">'+(items.length?'No matching values found.':'Add your first item above.')+'</div>');hydrateImages()}
+function list(){const q=($('ownerSearch')?.value||'').trim().toLowerCase();const filtered=items.filter(f=>String(f.name||'').toLowerCase().includes(q)||String(f.cat||'').toLowerCase().includes(q));$('list').innerHTML=filtered.length?filtered.map(f=>`<div class="li" data-item-image="${esc(f.id)}">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)} · ${esc(f.cat)}</small></div><button class="btn g" data-e="${f.id}">Edit</button><button class="btn d" data-d="${f.id}">Delete</button></div>`).join(''):('<div class="empty">'+(items.length?'No matching values found.':'Add your first item above.')+'</div>');hydrateImages()}
 $('ownerSearch').oninput=list;
 $('list').onclick=async e=>{const d=e.target.dataset;if(d.d){if(!confirm('Delete this item?'))return;items=items.filter(f=>f.id!=d.d);cleanTrade();all();await del(d.d)}
-if(d.e){const f=items.find(x=>x.id==d.e);editId=f.id;img='';$('n').value=f.name;$('val').value=fmt(f.val);$('cat').value=f.cat;$('rar').value=f.rar;$('dem').value=f.dem;$('trd').value=f.trd;$('sta').value=f.sta;$('ft').textContent='Edit item';$('cancel').hidden=false;scrollTo(0,0)}};
+if(d.e){const f=items.find(x=>x.id==d.e);editId=f.id;img=f.img||'';$('n').value=f.name;$('val').value=fmt(f.val);$('cat').value=f.cat;$('rar').value=f.rar;$('dem').value=f.dem;$('trd').value=f.trd;$('sta').value=f.sta;$('ft').textContent='Edit item';$('cancel').hidden=false;scrollTo(0,0)}};
 function reset(){editId=null;img='';['n','val'].forEach(i=>$(i).value='');$('img').value='';$('dem').value=5;$('ft').textContent='Add an item';$('cancel').hidden=true}
 $('cancel').onclick=reset;
 $('img').onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);img=c.toDataURL('image/webp',.85)};im.src=r.result};r.readAsDataURL(file)};
@@ -184,7 +199,7 @@ $('res').innerHTML=me+th?`<div class="res ${c[0]}"><span>${c[1]}</span><span>${d
 $('sides').onclick=e=>{const t=e.target.closest('.slot');if(!t)return;const{s,i}=t.dataset;const x=trade[s][i];
 if(x){if(x.q<9)x.q++;else trade[s][i]=null;calc();return}
 if(!items.length)return alert('No items yet.');pick={s,i};$('mq').value='';ml();$('m').classList.add('on')};
-function ml(){const q=$('mq').value.toLowerCase();$('ml').innerHTML=items.filter(f=>f.name.toLowerCase().includes(q)).map(f=>`<div class="li" data-id="${f.id}">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)}</small></div></div>`).join('')||'<div class="empty">Nothing found.</div>'}
+function ml(){const q=$('mq').value.toLowerCase();$('ml').innerHTML=items.filter(f=>f.name.toLowerCase().includes(q)).map(f=>`<div class="li" data-id="${f.id}" data-item-image="${esc(f.id)}">${pic(f)}<div class="n">${esc(f.name)}<small>${fmt(f.val)}</small></div></div>`).join('')||'<div class="empty">Nothing found.</div>'}
 $('mq').oninput=ml;
 $('ml').onclick=e=>{const r=e.target.closest('.li');if(!r)return;trade[pick.s][pick.i]={id:+r.dataset.id,q:1};$('m').classList.remove('on');calc()};
 $('m').onclick=e=>{if(e.target.id==='m')$('m').classList.remove('on')};
@@ -235,7 +250,7 @@ const oldGo=go;
 go=function(t){oldGo(t);if(t==='t'){listingSlots('offer');listingSlots('want');loadTradeListings()}};
 function all(){grid();list();calc();if(!$('t').hidden){listingSlots('offer');listingSlots('want')}}
 
-function all(){grid();list();calc()}
+function all(){grid();list();calc();if(!$('t').hidden){listingSlots('offer');listingSlots('want');renderTradeListings()}hydrateImages()}
 /* ===== STARTER SKINS IMPORT ===== */
 const SCALE=1; // 1 = values in Rokas. Change this if your own values use a different scale
 const TIER={U:[28,'Epic',7],S:[1250,'Mythic',9],'A+':[360,'Legendary',8],'A-':[95,'Epic',7],B:[28,'Rare',6],F:[4,'Common',4],G:[12,'Uncommon',5]};
