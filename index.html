@@ -119,11 +119,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 const DB='https://yba-values-default-rtdb.firebaseio.com';
 
 const KEY='yba-values-v1',HASH='5d24805756bd5a6daa294fb7b4b9b4c8c82210add14619e8417df60b1e19f566';
-const DEFAULTS=[
-{id:1,name:'Star Platinum',val:2e6,cat:'Stand',rar:'Legendary',dem:9,trd:'Stable',sta:'Fair',img:''},
-{id:2,name:'The World',val:2.5e6,cat:'Stand',rar:'Legendary',dem:10,trd:'Rising',sta:'Fair',img:''},
-{id:3,name:'Killer Queen',val:1.2e6,cat:'Stand',rar:'Rare',dem:7,trd:'Stable',sta:'Fair',img:''},
-{id:4,name:'Rokakaka',val:150e3,cat:'Item',rar:'Uncommon',dem:6,trd:'Falling',sta:'Overpaid',img:''}];
+const DEFAULTS=[];
 const online=DB.startsWith('https://')&&!DB.includes('PASTE')&&!DB.includes('yourname'),base=DB.replace(/\/$/,'');
 let items=[],trade={me:[null,null,null,null],them:[null,null,null,null]},editId=null,img='',pick=null,cat='All',unlocked=false;
 try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
@@ -133,28 +129,15 @@ const $=i=>document.getElementById(i);
 const cache=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
 const say=t=>$('sync').textContent=t;
 async function load(){
- const inDeleteRange=id=>{const n=Number(id);return Number.isInteger(n)&&n>=1&&n<=316};
- // Remove only records numbered 1–316; higher-numbered skin/stand records are retained.
- items=items.filter(f=>!inDeleteRange(f.id));cache();
- if(!online){if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));all();return}
+ // Values are not hardcoded in the source. Load the current list from the database.
+ items=[];cache();
+ if(!online){all();say('Database unavailable. No built-in sample values are included.');return}
  try{
   const r=await fetch(base+'/items.json');if(!r.ok)throw new Error('HTTP '+r.status);
   const d=await r.json();
-  if(d&&typeof d==='object'){
-   const doomed=Object.keys(d).filter(inDeleteRange);
-   items=Object.entries(d).filter(([key,f])=>!inDeleteRange(key)&&!inDeleteRange(f&&f.id)).map(([,f])=>f);
-   cache();cleanTrade();all();
-   let removed=0;
-   for(let i=0;i<doomed.length;i+=20){
-    const batch=doomed.slice(i,i+20);
-    const results=await Promise.all(batch.map(async id=>{
-     try{const x=await fetch(base+'/items/'+encodeURIComponent(id)+'.json',{method:'DELETE'});return x.ok}catch(e){return false}
-    }));
-    removed+=results.filter(Boolean).length;
-   }
-   say(doomed.length===removed?'Removed value records 1–316. Remaining items preserved.':'Hidden value records 1–316 locally; database deletion partially failed ('+removed+'/'+doomed.length+').');
-  }else{if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));cache();cleanTrade();all();say('Connected. No database value records found.')}
- }catch(e){if(!items.length)items=DEFAULTS.filter(f=>!inDeleteRange(f.id));all();say('Database unavailable. Records 1–316 are hidden locally; online deletion could not be verified.')}
+  items=d&&typeof d==='object'?Object.entries(d).map(([key,f])=>f&&typeof f==='object'?({...f,id:f.id??key}):null).filter(Boolean):[];
+  cache();cleanTrade();all();say('Loaded current values from the database.');
+ }catch(e){items=[];cache();cleanTrade();all();say('Could not load values from the database. No built-in sample values are included.')}
 }
 async function put(f){cache();if(!online)return;try{const r=await fetch(base+'/items/'+f.id+'.json',{method:'PUT',body:JSON.stringify(f)});if(!r.ok)throw 0;say('Saved for everyone.')}catch(e){alert('Could not save online. Check your database address and rules.')}}
 async function del(id){cache();if(!online)return;try{const r=await fetch(base+'/items/'+id+'.json',{method:'DELETE'});if(!r.ok)throw 0}catch(e){alert('Could not delete online.')}}
